@@ -1,0 +1,3688 @@
+---
+title: "Preliminary analysis"
+date: "2023-07-14"
+output:
+  pdf_document: 
+     extra_dependencies: ["flafter"]
+  html_document: default
+  word_document: default
+header-includes: \usepackage{fvextra} \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, include = FALSE}
+# Load libraries
+library(readxl)
+library(tidyverse)
+library(here)
+library(gridExtra)
+library(broom)
+library(knitr)
+library(quantmod)
+library(astsa)
+library(stargazer)
+```
+
+
+```{r, results='hide', message=FALSE}
+# Function to read excel sheets into different dataframes
+
+read_excel_allsheets <- function(filename, tibble = FALSE) {
+    # I prefer straight data.frames
+    # but if you like tidyverse tibbles (the default with read_excel)
+    # then just pass tibble = TRUE
+    sheets <- readxl::excel_sheets(filename)
+    x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X))
+    if(!tibble) x <- lapply(x, as.data.frame)
+    names(x) <- sheets
+    x
+}
+
+# Creates list including all excel sheets
+mysheets_base <- read_excel_allsheets(here::here("output_correct_base.xlsx"))
+mysheets_real <- read_excel_allsheets(here::here("output_correct_real.xlsx"))
+mysheets_2real <- read_excel_allsheets(here::here("output_correct_2real.xlsx"))
+```
+
+
+```{r, results='hide'}
+# Population size
+
+popSize_base <- mysheets_base$Pop_res1[1:501, -1 ]
+popSize_real <- mysheets_real$Pop_res1[1:501, -1 ]  
+popSize_2real <- mysheets_2real$Pop_res1[1:501, -1 ]
+
+year <- c(1:50)
+base <- colMeans(popSize_base)
+real <- colMeans(popSize_real)
+tworeal <- colMeans(popSize_2real)
+
+popSize_compiled <- as.data.frame(cbind(year,base,real,tworeal)) %>%
+  gather(key = "model", value = "pop_size", -year)
+```
+
+```{r}
+# All people
+
+all_base <- mysheets_base$All_people[1:501, -1 ]
+all_real <- mysheets_real$All_people[1:501, -1 ]  
+all_2real <- mysheets_2real$All_people[1:501, -1 ]
+
+all_ppl_base <- colMeans(all_base)
+all_ppl_real <- colMeans(all_real)
+all_ppl_tworeal <- colMeans(all_2real)
+
+all_ppl_compiled <- as.data.frame(cbind(year,all_ppl_base,all_ppl_real,all_ppl_tworeal)) %>%
+  gather(key = "model", value = "all_ppl", -year)
+
+```
+
+```{r}
+# Births
+
+# Base scenario
+births_base <- mysheets_base$Givebirth1645[1:501, -1 ]
+married_base <- mysheets_base$WmarriedBegin[1:501, -1 ]
+births_pct_base <- births_base/married_base
+avg_birthRate_base <- colMeans(births_pct_base)
+
+# Real scenario
+births_real <- mysheets_real$Givebirth1645[1:501, -1 ]
+married_real <- mysheets_real$WmarriedBegin[1:501, -1 ]
+births_pct_real <- births_real/married_real
+avg_birthRate_real <- colMeans(births_pct_real)
+
+# 2Real scenario
+births_tworeal <- mysheets_2real$Givebirth1645[1:501, -1 ]
+married_tworeal <- mysheets_2real$WmarriedBegin[1:501, -1 ]
+births_pct_tworeal <- births_tworeal/married_tworeal
+avg_birthRate_tworeal <- colMeans(births_pct_tworeal)
+
+births_compiled <- as.data.frame(cbind(year, avg_birthRate_base, avg_birthRate_real, avg_birthRate_tworeal)) %>%
+  gather(key = "model", value = "birth_rates", -year)
+```
+
+```{r}
+# Marriage 
+
+# Number of males and females married
+
+## Base/control scenario
+m.single_base <- mysheets_base$Msigle1645[1:501, -1]
+w.single_base <- mysheets_base$Wsingle1645[1:501, -1]
+
+m.married_base <- mysheets_base$MgetmarriedYear[1:501, -1]
+w.married_base <- mysheets_base$WgetmarriedYear[1:501, -1]
+
+m.marriedPct_base <- m.married_base/m.single_base
+w.marriedPct_base <- w.married_base/w.single_base
+
+avg_m.married_base <- colMeans(m.marriedPct_base)
+avg_w.married_base <- colMeans(w.marriedPct_base)
+
+## Real scenario
+m.single_real <- mysheets_real$Msigle1645[1:501, -1]
+w.single_real <- mysheets_real$Wsingle1645[1:501, -1]
+
+m.married_real <- mysheets_real$MgetmarriedYear[1:501, -1]
+w.married_real <- mysheets_real$WgetmarriedYear[1:501, -1]
+
+m.marriedPct_real<- m.married_real/m.single_real
+w.marriedPct_real <- w.married_real/w.single_real
+
+avg_m.married_real <- colMeans(m.marriedPct_real)
+avg_w.married_real <- colMeans(w.marriedPct_real)
+
+## 2Real scenario
+m.single_tworeal <- mysheets_2real$Msigle1645[1:501, -1]
+w.single_tworeal <- mysheets_2real$Wsingle1645[1:501, -1]
+
+m.married_tworeal <- mysheets_2real$MgetmarriedYear[1:501, -1]
+w.married_tworeal <- mysheets_2real$WgetmarriedYear[1:501, -1]
+
+m.marriedPct_tworeal<- m.married_tworeal/m.single_tworeal
+w.marriedPct_tworeal <- w.married_tworeal/w.single_tworeal
+
+avg_m.married_tworeal <- colMeans(m.marriedPct_tworeal)
+avg_w.married_tworeal <- colMeans(w.marriedPct_tworeal)
+
+# Compiling across all scenarios 
+m.married_compiled <- as.data.frame(cbind(year, avg_m.married_base, avg_m.married_real, avg_m.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+
+w.married_compiled <- as.data.frame(cbind(year, avg_w.married_base, avg_w.married_real, avg_w.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+```
+
+
+ 
+```{r,  results='hide', message=FALSE}
+## Scenario t3: Migration does not affect likelihood of marriage 
+
+# Loading dataset
+t3_base <- read_excel_allsheets(here::here("output_r0t3.xlsx"))
+t3_real <- read_excel_allsheets(here::here("output_r1t3.xlsx"))
+t3_2real <- read_excel_allsheets(here::here("output_r2t3.xlsx"))
+```
+
+
+```{r}
+# Number of males and females married
+
+## Base/control scenario
+t3.m.single_base <- t3_base$Msigle1645[1:501, -1]
+t3.w.single_base <- t3_base$Wsingle1645[1:501, -1]
+
+t3.m.married_base <- t3_base$MgetmarriedYear[1:501, -1]
+t3.w.married_base <- t3_base$WgetmarriedYear[1:501, -1]
+
+t3.m.marriedPct_base <- t3.m.married_base/t3.m.single_base
+t3.w.marriedPct_base <- t3.w.married_base/t3.w.single_base
+
+t3.avg_m.married_base <- colMeans(t3.m.marriedPct_base)
+t3.avg_w.married_base <- colMeans(t3.w.marriedPct_base)
+
+## Real scenario
+t3.m.single_real <- t3_real$Msigle1645[1:501, -1]
+t3.w.single_real <- t3_real$Wsingle1645[1:501, -1]
+
+t3.m.married_real <- t3_real$MgetmarriedYear[1:501, -1]
+t3.w.married_real <- t3_real$WgetmarriedYear[1:501, -1]
+
+t3.m.marriedPct_real<- t3.m.married_real/t3.m.single_real
+t3.w.marriedPct_real <- t3.w.married_real/t3.w.single_real
+
+t3.avg_m.married_real <- colMeans(t3.m.marriedPct_real)
+t3.avg_w.married_real <- colMeans(t3.w.marriedPct_real)
+
+## 2Real scenario
+t3.m.single_tworeal <- t3_2real$Msigle1645[1:501, -1]
+t3.w.single_tworeal <- t3_2real$Wsingle1645[1:501, -1]
+
+t3.m.married_tworeal <- t3_2real$MgetmarriedYear[1:501, -1]
+t3.w.married_tworeal <- t3_2real$WgetmarriedYear[1:501, -1]
+
+t3.m.marriedPct_tworeal<- t3.m.married_tworeal/t3.m.single_tworeal
+t3.w.marriedPct_tworeal <- t3.w.married_tworeal/t3.w.single_tworeal
+
+t3.avg_m.married_tworeal <- colMeans(t3.m.marriedPct_tworeal)
+t3.avg_w.married_tworeal <- colMeans(t3.w.marriedPct_tworeal)
+
+# Compiling across all scenarios 
+t3.m.married_compiled <- as.data.frame(cbind(year, t3.avg_m.married_base, t3.avg_m.married_real, t3.avg_m.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+
+t3.w.married_compiled <- as.data.frame(cbind(year, t3.avg_w.married_base, t3.avg_w.married_real, t3.avg_w.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+```
+
+
+
+```{r}
+# Death
+
+# Base scenario
+death_base <- mysheets_base$Death[1:501, -1]
+all_ppl_base <- mysheets_base$All_people[1:501, -1]
+death_rate_base <- death_base/all_ppl_base
+death_rate_base_avg <- colMeans(death_rate_base)
+
+# Real scenario
+death_real <- mysheets_real$Death[1:501, -1]
+all_ppl_real <- mysheets_real$All_people[1:501, -1]
+death_rate_real <- death_real/all_ppl_real
+death_rate_real_avg <- colMeans(death_rate_real)
+
+# 2Real scenario
+death_tworeal <- mysheets_2real$Death[1:501, -1]
+all_ppl_tworeal <- mysheets_2real$All_people[1:501, -1]
+death_rate_tworeal <- death_tworeal/all_ppl_tworeal
+death_rate_tworeal_avg <- colMeans(death_rate_tworeal)
+
+# Compiled death rates
+death_rate_compiled <- as.data.frame(cbind(year, death_rate_base_avg, death_rate_real_avg, death_rate_tworeal_avg)) %>%
+  gather(key = 'model', value = 'death_pct', -year)
+```
+
+
+
+```{r}
+# Migration and return migration 
+
+# Base scenario
+w.migration_base <- mysheets_base$WresiAndMoveout16[1:501, -1]
+w.resident_base <- mysheets_base$Wresi16[1:501, -1]
+w.mrate_base <- w.migration_base/w.resident_base
+w.mrate_avg_base <- as.data.frame(colMeans(w.mrate_base)) 
+  
+# Real scenario
+w.migration_real <- mysheets_real$WresiAndMoveout16[1:501, -1]
+w.resident_real <- mysheets_real$Wresi16[1:501, -1]
+w.mrate_real <- w.migration_real/w.resident_real
+w.mrate_avg_real <- as.data.frame(colMeans(w.mrate_real))   
+  
+# 2Real scenario
+w.migration_tworeal <- mysheets_2real$WresiAndMoveout16[1:501, -1]
+w.resident_tworeal <- mysheets_2real$Wresi16[1:501, -1]
+w.mrate_tworeal <- w.migration_tworeal/w.resident_tworeal
+w.mrate_avg_tworeal <- as.data.frame(colMeans(w.mrate_tworeal)) 
+
+# Column binding all averages
+w.mrate_compiled <- cbind(year, w.mrate_avg_base, w.mrate_avg_real, w.mrate_avg_tworeal) %>%
+  gather(key = 'model', value = 'migration_pct', -year)
+```
+
+
+```{r}
+# Base scenario
+m.migration_base <- mysheets_base$MresiAndMoveout16[1:501, -1]
+m.resident_base <- mysheets_base$Mresi16[1:501, -1]
+m.mrate_base <- m.migration_base/m.resident_base
+m.mrate_avg_base <- as.data.frame(colMeans(m.mrate_base)) 
+  
+# Real scenario
+m.migration_real <- mysheets_real$MresiAndMoveout16[1:501, -1]
+m.resident_real <- mysheets_real$Mresi16[1:501, -1]
+m.mrate_real <- m.migration_real/m.resident_real
+m.mrate_avg_real <- as.data.frame(colMeans(m.mrate_real))   
+  
+# 2Real scenario
+m.migration_tworeal <- mysheets_2real$MresiAndMoveout16[1:501, -1]
+m.resident_tworeal <- mysheets_2real$Mresi16[1:501, -1]
+m.mrate_tworeal <- m.migration_tworeal/m.resident_tworeal
+m.mrate_avg_tworeal <- as.data.frame(colMeans(m.mrate_tworeal)) 
+
+# Column binding all averages
+m.mrate_compiled <- cbind(year, m.mrate_avg_base, m.mrate_avg_real, m.mrate_avg_tworeal) %>%
+  gather(key = 'model', value = 'migration_pct', -year)
+```
+
+
+
+```{r}
+## Return Migration
+
+# Base scenario
+w.return_base <- mysheets_base$Wreturntimes16[1:501, -1]
+w.migrationTimes_base <- mysheets_base$Wmigouttimes16[1:501, -1]
+w.rMigration_base <- w.return_base/w.migrationTimes_base
+w.rMigration_avg_base <- as.data.frame(colMeans(w.rMigration_base))
+
+# Real scenario
+w.return_real <- mysheets_real$Wreturntimes16[1:501, -1]
+w.migrationTimes_real <- mysheets_real$Wmigouttimes16[1:501, -1]
+w.rMigration_real<- w.return_real/w.migrationTimes_real
+w.rMigration_avg_real <- as.data.frame(colMeans(w.rMigration_real))
+
+# 2Real scenario
+w.return_tworeal <- mysheets_2real$Wreturntimes16[1:501, -1]
+w.migrationTimes_tworeal <- mysheets_2real$Wmigouttimes16[1:501, -1]
+w.rMigration_tworeal <- w.return_tworeal/w.migrationTimes_tworeal
+w.rMigration_avg_tworeal <- as.data.frame(colMeans(w.rMigration_tworeal))
+
+# Compiled averages
+w.rMigration_compiled <- cbind(year, w.rMigration_avg_base, w.rMigration_avg_real, w.rMigration_avg_tworeal) %>%
+  gather(key = 'model', value = 'r.migration_pct', -year)
+```
+
+
+
+```{r}
+# Male Return Migration
+
+# Base scenario
+m.return_base <- mysheets_base$Mreturntimes16[1:501, -1]
+m.migrationTimes_base <- mysheets_base$Mmigouttimes16[1:501, -1]
+m.rMigration_base <- m.return_base/m.migrationTimes_base
+m.rMigration_avg_base <- as.data.frame(colMeans(m.rMigration_base))
+
+# Real scenario
+m.return_real <- mysheets_real$Mreturntimes16[1:501, -1]
+m.migrationTimes_real <- mysheets_real$Mmigouttimes16[1:501, -1]
+m.rMigration_real<- m.return_real/m.migrationTimes_real
+m.rMigration_avg_real <- as.data.frame(colMeans(m.rMigration_real))
+
+# 2Real scenario
+m.return_tworeal <- mysheets_2real$Mreturntimes16[1:501, -1]
+m.migrationTimes_tworeal <- mysheets_2real$Mmigouttimes16[1:501, -1]
+m.rMigration_tworeal <- m.return_tworeal/m.migrationTimes_tworeal
+m.rMigration_avg_tworeal <- as.data.frame(colMeans(m.rMigration_tworeal))
+
+# Compiled averages
+m.rMigration_compiled <- cbind(year, m.rMigration_avg_base, m.rMigration_avg_real, m.rMigration_avg_tworeal) %>%
+  gather(key = 'model', value = 'r.migration_pct', -year)
+```
+
+
+
+```{r, results='hide', message=FALSE}
+## Scenario t1: Migration behaviour independent of marital status
+
+# Loading dataset 
+t1_base <- read_excel_allsheets(here::here("output_r0t1.xlsx"))
+t1_real <- read_excel_allsheets(here::here("output_r1t1.xlsx"))
+t1_2real <- read_excel_allsheets(here::here("output_r2t1.xlsx"))
+```
+
+
+
+```{r}
+# T1 Female Migration Rate
+
+# Base scenario
+t1.w.migration_base <- t1_base$WresiAndMoveout16[1:501, -1]
+t1.w.resident_base <- t1_base$Wresi16[1:501, -1]
+t1.w.mrate_base <- t1.w.migration_base/t1.w.resident_base
+t1.w.mrate_avg_base <- as.data.frame(colMeans(t1.w.mrate_base)) 
+  
+# Real scenario
+t1.w.migration_real <- t1_real$WresiAndMoveout16[1:501, -1]
+t1.w.resident_real <- t1_real$Wresi16[1:501, -1]
+t1.w.mrate_real <- t1.w.migration_real/t1.w.resident_real
+t1.w.mrate_avg_real <- as.data.frame(colMeans(t1.w.mrate_real))   
+  
+# 2Real scenario
+t1.w.migration_tworeal <- t1_2real$WresiAndMoveout16[1:501, -1]
+t1.w.resident_tworeal <- t1_2real$Wresi16[1:501, -1]
+t1.w.mrate_tworeal <- t1.w.migration_tworeal/t1.w.resident_tworeal
+t1.w.mrate_avg_tworeal <- as.data.frame(colMeans(t1.w.mrate_tworeal)) 
+
+# Column binding all averages
+t1.w.mrate_compiled <- cbind(year, t1.w.mrate_avg_base, t1.w.mrate_avg_real, t1.w.mrate_avg_tworeal) %>%
+  gather(key = 'model', value = 'migration_pct', -year)
+```
+
+
+
+```{r}
+# T1 Male Migration Rate
+
+# Base scenario
+t1.m.migration_base <- t1_base$MresiAndMoveout16[1:501, -1]
+t1.m.resident_base <- t1_base$Mresi16[1:501, -1]
+t1.m.mrate_base <- t1.m.migration_base/t1.m.resident_base
+t1.m.mrate_avg_base <- as.data.frame(colMeans(t1.m.mrate_base)) 
+  
+# Real scenario
+t1.m.migration_real <- t1_real$MresiAndMoveout16[1:501, -1]
+t1.m.resident_real <- t1_real$Mresi16[1:501, -1]
+t1.m.mrate_real <- t1.m.migration_real/t1.m.resident_real
+t1.m.mrate_avg_real <- as.data.frame(colMeans(t1.m.mrate_real))   
+  
+# 2Real scenario
+t1.m.migration_tworeal <- t1_2real$MresiAndMoveout16[1:501, -1]
+t1.m.resident_tworeal <- t1_2real$Mresi16[1:501, -1]
+t1.m.mrate_tworeal <- t1.m.migration_tworeal/t1.m.resident_tworeal
+t1.m.mrate_avg_tworeal <- as.data.frame(colMeans(t1.m.mrate_tworeal)) 
+
+# Column binding all averages
+t1.m.mrate_compiled <- cbind(year, t1.m.mrate_avg_base, t1.m.mrate_avg_real, t1.m.mrate_avg_tworeal) %>%
+  gather(key = 'model', value = 'migration_pct', -year)
+```
+
+
+
+```{r, results='hide', message=FALSE}
+# Scenario t2: Migration behaviour independent of childbearing status
+
+#Loading dataset 
+t2_base <- read_excel_allsheets(here::here("output_r0t2.xlsx"))
+t2_real <- read_excel_allsheets(here::here("output_r1t2.xlsx"))
+t2_2real <- read_excel_allsheets(here::here("output_r2t2.xlsx"))
+```
+
+
+
+```{r}
+# T2 Female Migration Rate
+
+# Base scenario
+t2.w.migration_base <- t2_base$WresiAndMoveout16[1:501, -1]
+t2.w.resident_base <- t2_base$Wresi16[1:501, -1]
+t2.w.mrate_base <- t2.w.migration_base/t2.w.resident_base
+t2.w.mrate_avg_base <- as.data.frame(colMeans(t2.w.mrate_base)) 
+  
+# Real scenario
+t2.w.migration_real <- t2_real$WresiAndMoveout16[1:501, -1]
+t2.w.resident_real <- t2_real$Wresi16[1:501, -1]
+t2.w.mrate_real <- t2.w.migration_real/t2.w.resident_real
+t2.w.mrate_avg_real <- as.data.frame(colMeans(t2.w.mrate_real))   
+  
+# 2Real scenario
+t2.w.migration_tworeal <- t2_2real$WresiAndMoveout16[1:501, -1]
+t2.w.resident_tworeal <- t2_2real$Wresi16[1:501, -1]
+t2.w.mrate_tworeal <- t2.w.migration_tworeal/t2.w.resident_tworeal
+t2.w.mrate_avg_tworeal <- as.data.frame(colMeans(t2.w.mrate_tworeal)) 
+
+# Column binding all averages
+t2.w.mrate_compiled <- cbind(year, t2.w.mrate_avg_base, t2.w.mrate_avg_real, t2.w.mrate_avg_tworeal) %>%
+  gather(key = 'model', value = 'migration_pct', -year)
+```
+
+
+
+```{r}
+# T2 Male Migration Rate
+
+# Base scenario
+t2.m.migration_base <- t2_base$MresiAndMoveout16[1:501, -1]
+t2.m.resident_base <- t2_base$Mresi16[1:501, -1]
+t2.m.mrate_base <- t2.m.migration_base/t2.m.resident_base
+t2.m.mrate_avg_base <- as.data.frame(colMeans(t2.m.mrate_base)) 
+  
+# Real scenario
+t2.m.migration_real <- t2_real$MresiAndMoveout16[1:501, -1]
+t2.m.resident_real <- t2_real$Mresi16[1:501, -1]
+t2.m.mrate_real <- t2.m.migration_real/t2.m.resident_real
+t2.m.mrate_avg_real <- as.data.frame(colMeans(t2.m.mrate_real))   
+  
+# 2Real scenario
+t2.m.migration_tworeal <- t2_2real$MresiAndMoveout16[1:501, -1]
+t2.m.resident_tworeal <- t2_2real$Mresi16[1:501, -1]
+t2.m.mrate_tworeal <- t2.m.migration_tworeal/t2.m.resident_tworeal
+t2.m.mrate_avg_tworeal <- as.data.frame(colMeans(t2.m.mrate_tworeal)) 
+
+# Column binding all averages
+t2.m.mrate_compiled <- cbind(year, t2.m.mrate_avg_base, t2.m.mrate_avg_real, t2.m.mrate_avg_tworeal) %>%
+  gather(key = 'model', value = 'migration_pct', -year)
+```
+
+
+```{r}
+## [2] Combined Tables (standardised)
+
+# Regular scenario
+
+# Combining all graphs into one dataframe by scenarios
+base_compiled <- as.data.frame(cbind(year,
+                                     all_ppl_compiled$all_ppl[all_ppl_compiled$model=="all_ppl_base"],
+                                     popSize_compiled$pop_size[popSize_compiled$model=="base"],
+                                     births_compiled$birth_rates[births_compiled$model=="avg_birthRate_base"],
+                                     m.married_compiled$married_pct[m.married_compiled$model=="avg_m.married_base"],
+                                     w.married_compiled$married_pct[w.married_compiled$model=="avg_w.married_base"]))
+
+colnames(base_compiled)[2:6] <- c("all_ppl","popSize", "birthRate", "male_marriageRate", "female_marriageRate")
+
+### Real Scenario (Male)
+# Combining all graphs into one dataframe by scenarios
+real_compiled <- as.data.frame(cbind(year,
+                                     all_ppl_compiled$all_ppl[all_ppl_compiled$model=="all_ppl_real"],
+                                     popSize_compiled$pop_size[popSize_compiled$model=="real"],
+                                     births_compiled$birth_rates[births_compiled$model=="avg_birthRate_real"],
+                                     m.married_compiled$married_pct[m.married_compiled$model=="avg_m.married_real"],
+                                     w.married_compiled$married_pct[w.married_compiled$model=="avg_w.married_real"]))
+
+colnames(real_compiled)[2:6] <- c("all_ppl","popSize", "birthRate", "male_marriageRate", "female_marriageRate")
+
+### Tworeal Scenario (Male)
+# Combining all graphs into one dataframe by scenarios
+tworeal_compiled <- as.data.frame(cbind(year,
+                                        all_ppl_compiled$all_ppl[all_ppl_compiled$model=="all_ppl_tworeal"],
+                                        popSize_compiled$pop_size[popSize_compiled$model=="tworeal"],
+                                        births_compiled$birth_rates[births_compiled$model=="avg_birthRate_tworeal"],
+                                        m.married_compiled$married_pct[m.married_compiled$model=="avg_m.married_tworeal"],
+                                        w.married_compiled$married_pct[w.married_compiled$model=="avg_w.married_tworeal"]))
+
+colnames(tworeal_compiled)[2:6] <- c("all_ppl", "popSize", "birthRate", "male_marriageRate", "female_marriageRate" )
+```
+
+
+```{r}
+# T1 Scenario
+
+# Reading popSize under T1 scenario
+t1.popSize_base <- t1_base$Pop_res1[1:501, -1 ]
+t1.popSize_real <- t1_real$Pop_res1[1:501, -1 ]  
+t1.popSize_2real <- t1_2real$Pop_res1[1:501, -1 ]
+
+t1.base <- colMeans(t1.popSize_base)
+t1.real <- colMeans(t1.popSize_real)
+t1.tworeal <- colMeans(t1.popSize_2real)
+
+t1.popSize_compiled <- as.data.frame(cbind(year,t1.base,t1.real,t1.tworeal)) %>%
+  gather(key = "model", value = "pop_size", -year)
+
+# Calculating birth rate under T1
+
+## Base scenario
+t1.births_base <- t1_base$Givebirth1645[1:501, -1 ]
+t1.married_base <- t1_base$WmarriedBegin[1:501, -1 ]
+t1.births_pct_base <- t1.births_base/t1.married_base
+t1.avg_birthRate_base <- colMeans(t1.births_pct_base)
+
+## Real scenario
+t1.births_real <- t1_real$Givebirth1645[1:501, -1 ]
+t1.married_real <- t1_real$WmarriedBegin[1:501, -1 ]
+t1.births_pct_real <- t1.births_real/t1.married_real
+t1.avg_birthRate_real <- colMeans(t1.births_pct_real)
+
+## 2Real scenario
+t1.births_tworeal <- t1_2real$Givebirth1645[1:501, -1 ]
+t1.married_tworeal <- t1_2real$WmarriedBegin[1:501, -1 ]
+t1.births_pct_tworeal <- t1.births_tworeal/t1.married_tworeal
+t1.avg_birthRate_tworeal <- colMeans(t1.births_pct_tworeal)
+
+t1.births_compiled <- as.data.frame(cbind(year, t1.avg_birthRate_base, t1.avg_birthRate_real, t1.avg_birthRate_tworeal)) %>%
+  gather(key = "model", value = "birth_rates", -year)
+
+# Calculating marriage rates under T1
+
+## Base/control scenario
+t1.m.single_base <- t1_base$Msigle1645[1:501, -1]
+t1.w.single_base <- t1_base$Wsingle1645[1:501, -1]
+
+t1.m.married_base <- t1_base$MgetmarriedYear[1:501, -1]
+t1.w.married_base <- t1_base$WgetmarriedYear[1:501, -1]
+
+t1.m.marriedPct_base <- t1.m.married_base/t1.m.single_base
+t1.w.marriedPct_base <- t1.w.married_base/t1.w.single_base
+
+t1.avg_m.married_base <- colMeans(t1.m.marriedPct_base)
+t1.avg_w.married_base <- colMeans(t1.w.marriedPct_base)
+
+## Real scenario
+t1.m.single_real <- t1_real$Msigle1645[1:501, -1]
+t1.w.single_real <- t1_real$Wsingle1645[1:501, -1]
+
+t1.m.married_real <- t1_real$MgetmarriedYear[1:501, -1]
+t1.w.married_real <- t1_real$WgetmarriedYear[1:501, -1]
+
+t1.m.marriedPct_real <- t1.m.married_real/t1.m.single_real
+t1.w.marriedPct_real <- t1.w.married_real/t1.w.single_real
+
+t1.avg_m.married_real <- colMeans(t1.m.marriedPct_real)
+t1.avg_w.married_real <- colMeans(t1.w.marriedPct_real)
+
+## 2Real scenario
+t1.m.single_tworeal <- t1_2real$Msigle1645[1:501, -1]
+t1.w.single_tworeal <- t1_2real$Wsingle1645[1:501, -1]
+
+t1.m.married_tworeal <- t1_2real$MgetmarriedYear[1:501, -1]
+t1.w.married_tworeal <- t1_2real$WgetmarriedYear[1:501, -1]
+
+t1.m.marriedPct_tworeal <- t1.m.married_tworeal/t1.m.single_tworeal
+t1.w.marriedPct_tworeal <- t1.w.married_tworeal/t1.w.single_tworeal
+
+t1.avg_m.married_tworeal <- colMeans(t1.m.marriedPct_tworeal)
+t1.avg_w.married_tworeal <- colMeans(t1.w.marriedPct_tworeal)
+
+## Compiling across all scenarios 
+t1.m.married_compiled <- as.data.frame(cbind(year, t1.avg_m.married_base, t1.avg_m.married_real, t1.avg_m.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+
+t1.w.married_compiled <- as.data.frame(cbind(year, t1.avg_w.married_base, t1.avg_w.married_real, t1.avg_w.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+
+# Combining all graphs into one dataframe by scenarios
+### Base scenario (Male)
+t1.base_compiled <- as.data.frame(cbind(year,
+                                     scale(t1.popSize_compiled$pop_size[t1.popSize_compiled$model=="t1.base"]),
+                                     scale(t1.births_compiled$birth_rates[t1.births_compiled$model=="t1.avg_birthRate_base"]),
+                                     scale(t1.m.married_compiled$married_pct[t1.m.married_compiled$model=="t1.avg_m.married_base"]),
+                                     scale(t1.w.married_compiled$married_pct[t1.w.married_compiled$model=="t1.avg_w.married_base"])))
+
+colnames(t1.base_compiled)[2:5] <- c("t1.popSize", "t1.birthRate", "t1.male_marriageRate", "t1.female_marriageRate")
+
+### Real Scenario (Male)
+t1.real_compiled <- as.data.frame(cbind(year,
+                                     scale(t1.popSize_compiled$pop_size[t1.popSize_compiled$model=="t1.real"]),
+                                     scale(t1.births_compiled$birth_rates[t1.births_compiled$model=="t1.avg_birthRate_real"]),
+                                     scale(t1.m.married_compiled$married_pct[t1.m.married_compiled$model=="t1.avg_m.married_real"]),
+                                     scale(t1.w.married_compiled$married_pct[t1.w.married_compiled$model=="t1.avg_w.married_real"])))
+
+colnames(t1.real_compiled)[2:5] <- c("t1.popSize", "t1.birthRate", "t1.male_marriageRate", "t1.female_marriageRate")
+
+### Tworeal Scenario (Male)
+t1.tworeal_compiled <- as.data.frame(cbind(year,
+                                     scale(t1.popSize_compiled$pop_size[t1.popSize_compiled$model=="t1.tworeal"]),
+                                     scale(t1.births_compiled$birth_rates[t1.births_compiled$model=="t1.avg_birthRate_tworeal"]),
+                                     scale(t1.m.married_compiled$married_pct[t1.m.married_compiled$model=="t1.avg_m.married_tworeal"]),
+                                     scale(t1.w.married_compiled$married_pct[t1.w.married_compiled$model=="t1.avg_w.married_tworeal"])))
+
+colnames(t1.tworeal_compiled)[2:5] <- c("t1.popSize", "t1.birthRate", "t1.male_marriageRate", "t1.female_marriageRate")
+```
+
+
+```{r}
+# T2 Scenario
+
+# Reading popSize under T2 scenario
+t2.popSize_base <- t2_base$Pop_res1[1:501, -1 ]
+t2.popSize_real <- t2_real$Pop_res1[1:501, -1 ]  
+t2.popSize_2real <- t2_2real$Pop_res1[1:501, -1 ]
+
+t2.base <- colMeans(t2.popSize_base)
+t2.real <- colMeans(t2.popSize_real)
+t2.tworeal <- colMeans(t2.popSize_2real)
+
+t2.popSize_compiled <- as.data.frame(cbind(year,t2.base,t2.real,t2.tworeal)) %>%
+  gather(key = "model", value = "pop_size", -year)
+
+# Calculating birth rate under T2
+
+## Base scenario
+t2.births_base <- t2_base$Givebirth1645[1:501, -1 ]
+t2.married_base <- t2_base$WmarriedBegin[1:501, -1 ]
+t2.births_pct_base <- t2.births_base/t2.married_base
+t2.avg_birthRate_base <- colMeans(t2.births_pct_base)
+
+## Real scenario
+t2.births_real <- t2_real$Givebirth1645[1:501, -1 ]
+t2.married_real <- t2_real$WmarriedBegin[1:501, -1 ]
+t2.births_pct_real <- t2.births_real/t2.married_real
+t2.avg_birthRate_real <- colMeans(t2.births_pct_real)
+
+## 2Real scenario
+t2.births_tworeal <- t2_2real$Givebirth1645[1:501, -1 ]
+t2.married_tworeal <- t2_2real$WmarriedBegin[1:501, -1 ]
+t2.births_pct_tworeal <- t2.births_tworeal/t2.married_tworeal
+t2.avg_birthRate_tworeal <- colMeans(t2.births_pct_tworeal)
+
+t2.births_compiled <- as.data.frame(cbind(year, t2.avg_birthRate_base, t2.avg_birthRate_real, t2.avg_birthRate_tworeal)) %>%
+  gather(key = "model", value = "birth_rates", -year)
+
+# Calculating marriage rates under T2
+
+## Base/control scenario
+t2.m.single_base <- t2_base$Msigle1645[1:501, -1]
+t2.w.single_base <- t2_base$Wsingle1645[1:501, -1]
+
+t2.m.married_base <- t2_base$MgetmarriedYear[1:501, -1]
+t2.w.married_base <- t2_base$WgetmarriedYear[1:501, -1]
+
+t2.m.marriedPct_base <- t2.m.married_base/t2.m.single_base
+t2.w.marriedPct_base <- t2.w.married_base/t2.w.single_base
+
+t2.avg_m.married_base <- colMeans(t2.m.marriedPct_base)
+t2.avg_w.married_base <- colMeans(t2.w.marriedPct_base)
+
+## Real scenario
+t2.m.single_real <- t2_real$Msigle1645[1:501, -1]
+t2.w.single_real <- t2_real$Wsingle1645[1:501, -1]
+
+t2.m.married_real <- t2_real$MgetmarriedYear[1:501, -1]
+t2.w.married_real <- t2_real$WgetmarriedYear[1:501, -1]
+
+t2.m.marriedPct_real <- t2.m.married_real/t2.m.single_real
+t2.w.marriedPct_real <- t2.w.married_real/t2.w.single_real
+
+t2.avg_m.married_real <- colMeans(t2.m.marriedPct_real)
+t2.avg_w.married_real <- colMeans(t2.w.marriedPct_real)
+
+## 2Real scenario
+t2.m.single_tworeal <- t2_2real$Msigle1645[1:501, -1]
+t2.w.single_tworeal <- t2_2real$Wsingle1645[1:501, -1]
+
+t2.m.married_tworeal <- t2_2real$MgetmarriedYear[1:501, -1]
+t2.w.married_tworeal <- t2_2real$WgetmarriedYear[1:501, -1]
+
+t2.m.marriedPct_tworeal <- t2.m.married_tworeal/t2.m.single_tworeal
+t2.w.marriedPct_tworeal <- t2.w.married_tworeal/t2.w.single_tworeal
+
+t2.avg_m.married_tworeal <- colMeans(t2.m.marriedPct_tworeal)
+t2.avg_w.married_tworeal <- colMeans(t2.w.marriedPct_tworeal)
+
+## Compiling across all scenarios 
+t2.m.married_compiled <- as.data.frame(cbind(year, t2.avg_m.married_base, t2.avg_m.married_real, t2.avg_m.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+
+t2.w.married_compiled <- as.data.frame(cbind(year, t2.avg_w.married_base, t2.avg_w.married_real, t2.avg_w.married_tworeal)) %>%
+  gather(key = "model", value = "married_pct", -year) 
+
+# Combining all graphs into one dataframe by scenarios
+### Base scenario (Male)
+t2.base_compiled <- as.data.frame(cbind(year,
+                                     scale(t2.popSize_compiled$pop_size[t2.popSize_compiled$model=="t2.base"]),
+                                     scale(t2.births_compiled$birth_rates[t2.births_compiled$model=="t2.avg_birthRate_base"]),
+                                     scale(t2.m.married_compiled$married_pct[t2.m.married_compiled$model=="t2.avg_m.married_base"]),
+                                     scale(t2.w.married_compiled$married_pct[t2.w.married_compiled$model=="t2.avg_w.married_base"])))
+
+colnames(t2.base_compiled)[2:5] <- c("t2.popSize", "t2.birthRate", "t2.male_marriageRate", "t2.female_marriageRate")
+
+### Real Scenario (Male)
+t2.real_compiled <- as.data.frame(cbind(year,
+                                     scale(t2.popSize_compiled$pop_size[t2.popSize_compiled$model=="t2.real"]),
+                                     scale(t2.births_compiled$birth_rates[t2.births_compiled$model=="t2.avg_birthRate_real"]),
+                                     scale(t2.m.married_compiled$married_pct[t2.m.married_compiled$model=="t2.avg_m.married_real"]),
+                                     scale(t2.w.married_compiled$married_pct[t2.w.married_compiled$model=="t2.avg_w.married_real"])))
+
+colnames(t2.real_compiled)[2:5] <- c("t2.popSize", "t2.birthRate", "t2.male_marriageRate", "t2.female_marriageRate")
+
+### Tworeal Scenario (Male)
+t2.tworeal_compiled <- as.data.frame(cbind(year,
+                                     scale(t2.popSize_compiled$pop_size[t2.popSize_compiled$model=="t2.tworeal"]),
+                                     scale(t2.births_compiled$birth_rates[t2.births_compiled$model=="t2.avg_birthRate_tworeal"]),
+                                     scale(t2.m.married_compiled$married_pct[t2.m.married_compiled$model=="t2.avg_m.married_tworeal"]),
+                                     scale(t2.w.married_compiled$married_pct[t2.w.married_compiled$model=="t2.avg_w.married_tworeal"])))
+
+colnames(t2.tworeal_compiled)[2:5] <- c("t2.popSize", "t2.birthRate", "t2.male_marriageRate", "t2.female_marriageRate")
+```
+
+```{r}
+# T3 Scenario
+
+# Reading popSize under T3 scenario
+t3.popSize_base <- t3_base$Pop_res1[1:501, -1 ]
+t3.popSize_real <- t3_real$Pop_res1[1:501, -1 ]  
+t3.popSize_2real <- t3_2real$Pop_res1[1:501, -1 ]
+
+t3.base <- colMeans(t3.popSize_base)
+t3.real <- colMeans(t3.popSize_real)
+t3.tworeal <- colMeans(t3.popSize_2real)
+
+t3.popSize_compiled <- as.data.frame(cbind(year,t3.base,t3.real,t3.tworeal)) %>%
+  gather(key = "model", value = "pop_size", -year)
+
+# Calculating birth rate and marriage rate under T3
+
+## Base scenario
+t3.births_base <- t3_base$Givebirth1645[1:501, -1 ]
+t3.married_base <- t3_base$WmarriedBegin[1:501, -1 ]
+t3.births_pct_base <- t3.births_base/t3.married_base
+t3.avg_birthRate_base <- colMeans(t3.births_pct_base)
+
+## Real scenario
+t3.births_real <- t3_real$Givebirth1645[1:501, -1 ]
+t3.married_real <- t3_real$WmarriedBegin[1:501, -1 ]
+t3.births_pct_real <- t3.births_real/t3.married_real
+t3.avg_birthRate_real <- colMeans(t3.births_pct_real)
+
+## 2Real scenario
+t3.births_tworeal <- t3_2real$Givebirth1645[1:501, -1 ]
+t3.married_tworeal <- t3_2real$WmarriedBegin[1:501, -1 ]
+t3.births_pct_tworeal <- t3.births_tworeal/t3.married_tworeal
+t3.avg_birthRate_tworeal <- colMeans(t3.births_pct_tworeal)
+
+t3.births_compiled <- as.data.frame(cbind(year, t3.avg_birthRate_base, t3.avg_birthRate_real, t3.avg_birthRate_tworeal)) %>%
+  gather(key = "model", value = "birth_rates", -year)
+
+# Combining all graphs into one dataframe by scenarios
+### Base scenario (Male)
+t3.base_compiled <- as.data.frame(cbind(year,
+                                     scale(t3.popSize_compiled$pop_size[t3.popSize_compiled$model=="t3.base"]),
+                                     scale(t3.births_compiled$birth_rates[t3.births_compiled$model=="t3.avg_birthRate_base"]),
+                                     scale(t3.m.married_compiled$married_pct[t3.m.married_compiled$model=="t3.avg_m.married_base"]),
+                                     scale(t3.w.married_compiled$married_pct[t3.w.married_compiled$model=="t3.avg_w.married_base"])))
+
+colnames(t3.base_compiled)[2:5] <- c("t3.popSize", "t3.birthRate", "t3.male_marriageRate", "t3.female_marriageRate")
+
+### Real Scenario (Male)
+t3.real_compiled <- as.data.frame(cbind(year,
+                                     scale(t3.popSize_compiled$pop_size[t3.popSize_compiled$model=="t3.real"]),
+                                     scale(t3.births_compiled$birth_rates[t3.births_compiled$model=="t3.avg_birthRate_real"]),
+                                     scale(t3.m.married_compiled$married_pct[t3.m.married_compiled$model=="t3.avg_m.married_real"]),
+                                     scale(t3.w.married_compiled$married_pct[t3.w.married_compiled$model=="t3.avg_w.married_real"])))
+
+colnames(t3.real_compiled)[2:5] <- c("t3.popSize", "t3.birthRate", "t3.male_marriageRate", "t3.female_marriageRate")
+
+### Tworeal Scenario (Male)
+t3.tworeal_compiled <- as.data.frame(cbind(year,
+                                     scale(t3.popSize_compiled$pop_size[t3.popSize_compiled$model=="t3.tworeal"]),
+                                     scale(t3.births_compiled$birth_rates[t3.births_compiled$model=="t3.avg_birthRate_tworeal"]),
+                                     scale(t3.m.married_compiled$married_pct[t3.m.married_compiled$model=="t3.avg_m.married_tworeal"]),
+                                     scale(t3.w.married_compiled$married_pct[t3.w.married_compiled$model=="t3.avg_w.married_tworeal"])))
+
+colnames(t3.tworeal_compiled)[2:5] <- c("t3.popSize", "t3.birthRate", "t3.male_marriageRate", "t3.female_marriageRate")
+```
+
+
+```{r}
+# Transposed Base Scenario 
+transposed_base_compiled <- base_compiled
+colnames(transposed_base_compiled)[2:6] <- c("base_all_ppl",
+                                             "base_popSize",
+                                             "base_birthRate",
+                                             "base_male_marriageRate",
+                                             "base_female_marriageRate")
+
+#transposed_base_compiled <- transposed_base_compiled %>%
+#  mutate(diff_popSize = t3.popSize - popSize,
+#         diff_birthRate = t3.birthRate - birthRate,
+#         diff_male_marriageRate = t3.male_marriageRate - male_marriageRate,
+#         diff_female_marriageRate = t3.female_marriageRate - female_marriageRate)
+
+### Transposed Real Scenario
+transposed_real_compiled <- cbind(real_compiled)
+colnames(transposed_real_compiled)[2:6] <- c("real_all_ppl",
+                                             "real_popSize",
+                                             "real_birthRate",
+                                             "real_male_marriageRate",
+                                             "real_female_marriageRate")
+
+### Transposed Tworeal Scenario 
+transposed_tworeal_compiled <- cbind(tworeal_compiled)
+colnames(transposed_tworeal_compiled)[2:6] <- c("tworeal_all_ppl",
+                                                "tworeal_popSize",
+                                                "tworeal_birthRate",
+                                                "tworeal_male_marriageRate",
+                                                "tworeal_female_marriageRate")
+```
+
+
+```{r}
+# Combined Transposed
+
+combined_transposed <- cbind(transposed_base_compiled, transposed_real_compiled, transposed_tworeal_compiled) %>%
+  select(-c(7,13)) %>%
+  mutate(diff_all_ppl_real = (real_all_ppl - base_all_ppl)/base_all_ppl,
+         diff_all_ppl_tworeal = (tworeal_all_ppl - base_all_ppl)/base_all_ppl,
+         diff_birthRate_real = (real_birthRate - base_birthRate)/base_birthRate,
+         diff_birthRate_tworeal = (tworeal_birthRate - base_birthRate)/base_birthRate,
+         diff_male_marriageRate_real = (real_male_marriageRate - base_male_marriageRate)/base_male_marriageRate,
+         diff_male_marriageRate_tworeal = (tworeal_male_marriageRate - base_male_marriageRate)/base_male_marriageRate,
+         diff_female_marriageRate_real = (real_female_marriageRate - base_female_marriageRate)/base_female_marriageRate,
+         diff_female_marriageRate_tworeal = (tworeal_female_marriageRate - base_female_marriageRate)/base_female_marriageRate)
+```
+
+
+\newpage 
+
+<!----------------------------------------------------------------------------------------------------------------------------
+                                              INCLUDE THIS SECTION FOR TRANSPOSED ONLY
+----------------------------------------------------------------------------------------------------------------------------->
+
+
+# Summary
+
+## [1] Formulas 
+
+The following describes the excel sheet and the formulas that were used in the calculation of the various demographic measures:
+
+$$Population Size = popres1\ OR\ all\_people$$  
+
+$$Fertility Rate = \frac{Givebirth1645}{WmarriedBegin}$$
+
+$$Marriage\ Rate = \frac{WgetmarriedYear}{Wsingle1645}\ OR\ \frac{MgetmarriedYear}{Msingle1645}$$
+
+
+
+# [2] % Difference
+
+## [2.1] All People
+
+### Peaks of All_People (Base) 
+
+```{r}
+all_people_peak_base <- combined_transposed %>%
+  filter(year == c(findPeaks(combined_transposed$base_all_ppl, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, base_all_ppl)
+
+all_people_peak_base
+```
+
+### Peaks of All_People (Real)
+
+```{r}
+all_people_peak_real <- combined_transposed %>%
+  filter(year == c(findPeaks(combined_transposed$real_all_ppl, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, real_all_ppl, base_all_ppl, diff_all_ppl_real)
+
+all_people_peak_real
+```
+
+### Peaks of All_People (2Real)
+
+```{r}
+all_people_peak_tworeal <- combined_transposed %>%
+  filter(year == c(findPeaks(combined_transposed$tworeal_all_ppl, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, tworeal_all_ppl, base_all_ppl, diff_all_ppl_tworeal)
+
+all_people_peak_tworeal
+```
+
+
+```{r}
+# Diff (all_people) between base and other scenarios
+
+all_ppl_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_all_ppl_real, linetype="real")) +
+  geom_line(aes(y=diff_all_ppl_tworeal, linetype="tworeal")) +
+  scale_linetype_manual(values = c("real" = "solid", 
+                                   "tworeal" = "dashed")) +
+  geom_vline(xintercept = all_people_peak_base$year, linetype = "dotted") +
+  ggtitle("% Difference (All_People)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(all_ppl_diff)
+
+#ggsave(here::here("Images", "diff_all_people.png"), all_ppl_diff, width = 20, height = 10, dpi = 500)
+```
+
+## [2.2] Birth Rates
+
+### Peaks of birth rates (Base) 
+
+```{r}
+birthRate_peak_base <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$base_birthRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, base_birthRate)
+
+birthRate_peak_base
+```
+
+### Peaks of birth rates (Real)
+
+```{r}
+birthRate_peak_real <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$real_birthRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, real_birthRate, base_birthRate, diff_birthRate_real)
+
+birthRate_peak_real
+```
+
+### Peaks of birth rates (2Real)
+
+```{r}
+birthRate_peak_tworeal <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$tworeal_birthRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, tworeal_birthRate, base_birthRate, diff_birthRate_tworeal)
+
+birthRate_peak_tworeal
+```
+
+```{r}
+# Diff (all_people) between base and other scenarios
+
+birthRate_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_birthRate_real, linetype="real")) +
+  geom_line(aes(y=diff_birthRate_tworeal, linetype="tworeal")) +
+  scale_linetype_manual(values = c("real" = "solid", 
+                                   "tworeal" = "dashed")) +
+  geom_vline(xintercept = birthRate_peak_base$year, linetype = "dotted") +
+  ggtitle("% Difference (Birth Rates)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(birthRate_diff)
+
+#ggsave(here::here("Images", "diff_all_people.png"), all_ppl_diff, width = 20, height = 10, dpi = 500)
+```
+
+## [2.3] Male Marriage Rates
+
+### Peaks of male marriage rates (Base) 
+
+```{r}
+male_marriageRate_peak_base <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$base_male_marriageRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, base_male_marriageRate)
+
+male_marriageRate_peak_base
+```
+
+### Peaks of male marriage rates (Real)
+
+```{r}
+male_marriageRate_peak_real <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$real_male_marriageRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, real_male_marriageRate, base_male_marriageRate, diff_male_marriageRate_real)
+
+birthRate_peak_real
+```
+
+### Peaks of male marriage rates (2Real)
+
+```{r}
+male_marriageRate_peak_tworeal <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$tworeal_male_marriageRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, tworeal_male_marriageRate, base_male_marriageRate, diff_male_marriageRate_tworeal)
+
+birthRate_peak_tworeal
+```
+
+```{r}
+# Diff (all_people) between base and other scenarios
+
+male_marriageRate_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_male_marriageRate_real, linetype="real")) +
+  geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="tworeal")) +
+  scale_linetype_manual(values = c("real" = "solid", 
+                                   "tworeal" = "dashed")) +
+  geom_vline(xintercept = male_marriageRate_peak_base$year, linetype = "dotted") +
+  ggtitle("% Difference (Male Marriage Rates)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(male_marriageRate_diff)
+```
+
+## [2.4] Female Marriage Rates
+
+### Peaks of female marriage rates (Base) 
+
+```{r}
+female_marriageRate_peak_base <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$base_female_marriageRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, base_female_marriageRate)
+
+female_marriageRate_peak_base
+```
+
+### Peaks of female marriage rates (Real)
+
+```{r}
+female_marriageRate_peak_real <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$real_female_marriageRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, real_female_marriageRate, base_male_marriageRate, diff_female_marriageRate_real)
+
+female_marriageRate_peak_real
+```
+
+### Peaks of female marriage rates (2Real)
+
+```{r}
+female_marriageRate_peak_tworeal <- combined_transposed %>%
+  filter(year %in% c(findPeaks(combined_transposed$tworeal_female_marriageRate, thres=0)-1)) %>%
+  filter(year > 15) %>%
+  select(year, tworeal_female_marriageRate, base_female_marriageRate, diff_female_marriageRate_tworeal)
+
+female_marriageRate_peak_tworeal
+```
+
+```{r}
+# Diff (all_people) between base and other scenarios
+
+female_marriageRate_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_female_marriageRate_real, linetype="real")) +
+  geom_line(aes(y=diff_female_marriageRate_tworeal, linetype="tworeal")) +
+  scale_linetype_manual(values = c("real" = "solid", 
+                                   "tworeal" = "dashed")) +
+  geom_vline(xintercept = female_marriageRate_peak_base$year, linetype = "dotted") +
+  ggtitle("% Difference (Female Marriage Rates)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(female_marriageRate_diff)
+```
+
+## [2.5.1] Female + Male Marriage Rates (Real)
+
+```{r}
+#combined_marriageRate_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+#  geom_line(aes(y=diff_female_marriageRate_real, linetype="real", colour = "female")) +
+#  geom_line(aes(y=diff_female_marriageRate_tworeal, linetype="tworeal", colour = "female")) +
+#  geom_line(aes(y=diff_male_marriageRate_real, linetype="real", colour = "male")) +
+#  geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="tworeal", colour = "male")) +
+#  scale_linetype_manual(values = c("real" = "solid", 
+#                                   "tworeal" = "dashed")) +
+#  scale_colour_manual(values = c("male" = "black",
+#                                 "female" = "red")) +
+#  ggtitle("% Male + Female Difference in Marriage Rates") +
+# ylab("% Difference") +
+# theme_minimal()
+
+# plot(combined_marriageRate_diff)
+
+combined_real_marriageRate_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_female_marriageRate_real, linetype="female")) +
+  #geom_line(aes(y=diff_female_marriageRate_tworeal, linetype="tworeal", colour = "female")) +
+  geom_line(aes(y=diff_male_marriageRate_real, linetype="male")) +
+  #geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="tworeal", colour = "male")) +
+  scale_linetype_manual(values = c("female" = "solid", 
+                                   "male" = "dashed")) +
+  ggtitle("% Male + Female Difference in Marriage Rates (Real)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(combined_real_marriageRate_diff)
+```
+
+## [2.5.2] Female + Male Marriage Rates (TwoReal)
+
+```{r}
+combined_tworeal_marriageRate_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  #geom_line(aes(y=diff_female_marriageRate_real, linetype="female")) +
+  geom_line(aes(y=diff_female_marriageRate_tworeal, linetype="female")) +
+  #geom_line(aes(y=diff_male_marriageRate_real, linetype="male")) +
+  geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="male")) +
+  scale_linetype_manual(values = c("female" = "solid", 
+                                   "male" = "dashed")) +
+  ggtitle("% Male + Female Difference in Marriage Rates (TwoReal)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(combined_tworeal_marriageRate_diff)
+```
+
+## [2.6.1] Female Marriage Rates + Birth Rates (Real)
+
+```{r}
+# Raw rates
+female_marriageRate_birthRate_real <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x = year)) +
+  #ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=real_female_marriageRate, colour="female_marriage"), lwd=1.2) +
+  geom_line(aes(y=real_birthRate, colour="birthRate"),lwd=1.2) +
+  geom_vline(xintercept=18, colour = "orange", lwd=1.2) +
+  geom_vline(xintercept=22, colour = "orange", lwd=1.2) +
+  scale_colour_manual(values = c("female_marriage" = "orange", 
+                                   "birthRate" = "purple")) +
+  ggtitle("Marriage and Birth Rates (Female)") +
+  ylab("Rates") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom")
+
+plot(female_marriageRate_birthRate_real)
+ggsave(here::here("Images", "female_rateDiff.png"), female_marriageRate_birthRate_real, width = 20, height = 10, dpi = 700)
+
+# Raw rates Post conflict
+female_marriageRate_birthRate_real_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x = year)) +
+  #ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=real_female_marriageRate, colour="female_marriage"), lwd=1.2) +
+  geom_line(aes(y=real_birthRate, colour="birthRate"),lwd=1.2) +
+  geom_vline(xintercept=18, colour = "orange", lwd=1.2) +
+  geom_vline(xintercept=22, colour = "orange", lwd=1.2) +
+  scale_colour_manual(values = c("female_marriage" = "orange", 
+                                   "birthRate" = "purple")) +
+  scale_x_continuous(breaks=seq(15,25,1)) +
+  ggtitle("Marriage and Birth Rates (Female)") +
+  ylab("Rates") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom")
+
+plot(female_marriageRate_birthRate_real_postconflict)
+ggsave(here::here("Images", "female_rateDiff_postconflict.png"), female_marriageRate_birthRate_real_postconflict,
+       width = 20, height = 10, dpi = 700)
+```
+
+
+```{r}
+# uncoloured
+female_marriageRate_birthRate_real_diff <- ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_line(aes(y=diff_female_marriageRate_real, linetype="female_marriage")) +
+  #geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="tworeal", colour = "male_marriage")) +
+  geom_line(aes(y=diff_birthRate_real, linetype="birthRate")) +
+  #geom_line(aes(y=diff_birthRate_tworeal, linetype="tworeal", colour = "birthRate")) +
+  scale_linetype_manual(values = c("female_marriage" = "solid", 
+                                   "birthRate" = "dashed")) +
+  ggtitle("% Female Difference in Marriage and Birth Rates (Real)") +
+  ylab("% Difference") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(21,50,1)) +
+  theme(legend.key.size = unit(1, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  #geom_hline(yintercept=0) +
+  geom_vline(xintercept=22) +
+  geom_vline(xintercept=23, linetype="dashed") +
+  geom_vline(xintercept=31) +
+  geom_vline(xintercept=35, linetype="dashed")
+
+plot(female_marriageRate_birthRate_real_diff)
+ggsave(here::here("Images", "female_diff.png"), female_marriageRate_birthRate_real_diff, width = 20, height = 10, dpi = 700)
+
+# coloured
+female_marriageRate_birthRate_real_diff <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x = year)) +
+  #ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=diff_female_marriageRate_real, colour="female_marriage"), lwd=1.2) +
+  geom_line(aes(y=diff_birthRate_real, colour="birthRate"),lwd=1.2) +
+  scale_colour_manual(values = c("female_marriage" = "orange", 
+                                   "birthRate" = "purple")) +
+  ggtitle("% Diff Marriage and Birth Rates (Female)") +
+  ylab("% Difference") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(female_marriageRate_birthRate_real_diff)
+ggsave(here::here("Images", "female_diff.png"), female_marriageRate_birthRate_real_diff, width = 20, height = 10, dpi = 700)
+
+# postconflict
+female_marriageRate_birthRate_real_diff_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=diff_female_marriageRate_real, colour="female_marriage"), lwd=1.2) +
+  geom_line(aes(y=diff_birthRate_real, colour="birthRate"),lwd=1.2) +
+  scale_colour_manual(values = c("female_marriage" = "orange", 
+                                   "birthRate" = "purple")) +
+  scale_x_continuous(breaks=seq(15,25,1)) +
+  ggtitle("% Diff Marriage and Birth Rates (Female)") +
+  ylab("% Difference") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(female_marriageRate_birthRate_real_diff_postconflict)
+ggsave(here::here("Images", "female_diff_postconflict.png"),
+       female_marriageRate_birthRate_real_diff_postconflict, width = 20, height = 10, dpi = 700)
+```
+
+## [2.6.2] Female Marriage Rates + Birth Rates (TwoReal)
+
+```{r}
+female_marriageRate_birthRate_tworeal_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  #geom_line(aes(y=diff_female_marriageRate_real, linetype="female_marriage")) +
+  geom_line(aes(y=diff_female_marriageRate_tworeal, linetype="female_marriage")) +
+  #geom_line(aes(y=diff_birthRate_real, linetype="birthRate")) +
+  geom_line(aes(y=diff_birthRate_tworeal, linetype="birthRate")) +
+  scale_linetype_manual(values = c("female_marriage" = "solid", 
+                                   "birthRate" = "dashed")) +
+  ggtitle("% Female Difference in Marriage and Birth Rates (TwoReal)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(female_marriageRate_birthRate_tworeal_diff)
+```
+
+## [2.7.1] Male Marriage Rates + Birth Rates (Real)
+
+```{r}
+# Raw rates
+male_marriageRate_birthRate_real <- combined_transposed %>%
+  ggplot(aes(x = year)) +
+  #ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=real_male_marriageRate, colour="male_marriage"), lwd=1.2) +
+  geom_line(aes(y=real_birthRate, colour="birthRate"),lwd=1.2) +
+  geom_vline(xintercept=18, colour = "blue", lwd=1.2) +
+  geom_vline(xintercept=22, colour= "blue", lwd=1.2) +
+  scale_colour_manual(values = c("male_marriage" = "blue", 
+                                   "birthRate" = "red")) +
+  scale_x_continuous(breaks=seq(0,50,10)) +
+  ggtitle("Marriage and Birth Rates (Male)") +
+  ylab("Rates") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom")
+
+plot(male_marriageRate_birthRate_real)
+ggsave(here::here("Images", "male_rateDiff.png"), male_marriageRate_birthRate_real,
+       width = 20, height = 10, dpi = 700)
+```
+
+
+```{r}
+# uncoloured
+male_marriageRate_birthRate_real_diff <- ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_line(aes(y=diff_male_marriageRate_real, linetype="male_marriage")) +
+  #geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="tworeal", colour = "male_marriage")) +
+  geom_line(aes(y=diff_birthRate_real, linetype="birthRate")) +
+  #geom_line(aes(y=diff_birthRate_tworeal, linetype="tworeal", colour = "birthRate")) +
+  scale_linetype_manual(values = c("male_marriage" = "solid", 
+                                   "birthRate" = "dashed")) +
+  ggtitle("% Male Difference in Marriage and Birth Rates (Real)") +
+  ylab("% Difference") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(21,50,1)) +
+  theme(legend.key.size = unit(1, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  #geom_hline(yintercept=0) +
+  geom_vline(xintercept=22) +
+  geom_vline(xintercept=23, linetype="dashed") +
+  geom_vline(xintercept=34) +
+  geom_vline(xintercept=35, linetype="dashed")
+
+plot(male_marriageRate_birthRate_real_diff)
+ggsave(here::here("Images", "male_diff.png"), male_marriageRate_birthRate_real_diff, width = 20, height = 10, dpi = 700)
+
+# coloured
+male_marriageRate_birthRate_real_diff <- combined_transposed %>%
+  ggplot(aes(x = year)) +
+  #ggplot(data = combined_transposed[21:length(combined_transposed$year), ], aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=diff_male_marriageRate_real, colour="male_marriage"), lwd=1.2) +
+  geom_line(aes(y=diff_birthRate_real, colour="birthRate"),lwd=1.2) +
+  scale_colour_manual(values = c("male_marriage" = "blue", 
+                                   "birthRate" = "red")) +
+  ggtitle("% Diff Marriage and Birth Rates (Male)") +
+  ylab("% Difference") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(male_marriageRate_birthRate_real_diff)
+ggsave(here::here("Images", "male_diff.png"), male_marriageRate_birthRate_real_diff, width = 20, height = 10, dpi = 700)
+
+# postconflict
+male_marriageRate_birthRate_real_diff_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y=diff_male_marriageRate_real, colour="male_marriage"), lwd=1.2) +
+  geom_line(aes(y=diff_birthRate_real, colour="birthRate"),lwd=1.2) +
+  scale_colour_manual(values = c("male_marriage" = "blue", 
+                                   "birthRate" = "red")) +
+  scale_x_continuous(breaks=seq(15,25,1)) +
+  ggtitle("% Diff Marriage and Birth Rates (Male)") +
+  ylab("% Difference") +
+  theme_minimal() +
+  theme(legend.key.size = unit(4, 'cm'),
+        axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(male_marriageRate_birthRate_real_diff_postconflict)
+ggsave(here::here("Images", "male_diff_postconflict.png"),
+       male_marriageRate_birthRate_real_diff_postconflict, width = 20, height = 10, dpi = 700)
+
+```
+
+## [2.7.2] Male Marriage Rates + Birth Rates (TwoReal)
+
+```{r}
+male_marriageRate_birthRate_tworeal_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_male_marriageRate_tworeal, linetype="male_marriage")) +
+  geom_line(aes(y=diff_birthRate_tworeal, linetype="birthRate")) +
+  scale_linetype_manual(values = c("male_marriage" = "solid",
+                                   "birthRate" = "dashed")) +
+  ggtitle("Male Difference in Marriage and Birth Rates (TwoReal)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(male_marriageRate_birthRate_tworeal_diff)
+```
+
+## [2.8.1] Birth Rates + All_People (Real)
+
+```{r}
+all_ppl_birthRate_real_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  geom_line(aes(y=diff_birthRate_real, linetype="birthRate")) +
+  #geom_line(aes(y=diff_birthRate_tworeal, linetype="tworeal", colour = "birthRate")) +
+  geom_line(aes(y=diff_all_ppl_real, linetype="all_ppl")) +
+  #geom_line(aes(y=diff_all_ppl_tworeal, linetype="tworeal", colour = "all_ppl")) +
+  scale_linetype_manual(values = c("birthRate" = "solid", 
+                                   "all_ppl" = "dashed")) +
+  ggtitle("% Difference in Birth Rates and All_People (Real)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(all_ppl_birthRate_real_diff)
+```
+
+## [2.8.2] Birth Rates + All_People (TwoReal)
+
+```{r}
+all_ppl_birthRate_tworeal_diff <- ggplot(data = combined_transposed, aes(x = year)) +
+  #geom_line(aes(y=diff_birthRate_real, linetype="birthRate")) +
+  geom_line(aes(y=diff_birthRate_tworeal, linetype="birthRate")) +
+  #geom_line(aes(y=diff_all_ppl_real, linetype="all_ppl")) +
+  geom_line(aes(y=diff_all_ppl_tworeal, linetype="all_ppl")) +
+  scale_linetype_manual(values = c("birthRate" = "solid", 
+                                   "all_ppl" = "dashed")) +
+  ggtitle("% Difference in Birth Rates and All_People (TwoReal)") +
+  ylab("% Difference") +
+  theme_minimal()
+
+plot(all_ppl_birthRate_tworeal_diff)
+```
+
+\newpage
+
+# [3] Scenarios (individual graphs)
+
+## [3.0] popSize
+```{r}
+
+popSize_plot <- ggplot(data=combined_transposed, aes(x=year)) + 
+  geom_line(aes(y = base_popSize, linetype = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_popSize, linetype = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_popSize, linetype = "tworeal"), lwd = 1.2) +
+   scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Population Size (Open Population)") +
+  theme_minimal() +
+  theme(legend.key.size = unit(1.5, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  geom_vline(xintercept=22) +
+  ylab("Pop Size")
+
+plot(popSize_plot)
+ggsave(here::here("Images", "popSize_combined.png"), popSize_plot, width = 20, height = 10, dpi = 900)
+```
+
+
+## [3.1] All_People
+```{r}
+# Linetype
+all_people_plot <- ggplot(data=combined_transposed, aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_all_ppl, linetype = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_all_ppl, linetype = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_all_ppl, linetype = "tworeal"), lwd = 1.2) +
+   scale_linetype_manual(values = c("base" = "solid", 
+                                  "real" = "dashed",
+                                  "tworeal" = "dotted")) +
+   ggtitle("Population Size (Closed Population)") +
+  theme_minimal() +
+  theme(legend.key.size = unit(1.5, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  geom_vline(xintercept=22) +
+  ylab("Pop Size")
+
+# Population Size Colour  
+all_people_plot <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_all_ppl, colour = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_all_ppl, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_all_ppl, colour = "tworeal"), lwd = 1.2) +
+  scale_colour_manual(values = c("base" = "black",
+                                 "real" = "red",
+                                 "tworeal" = "blue")) +
+  ggtitle("Population Size (Closed Population)") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        text = element_text(size = 20),
+        legend.key.size = unit(7,'cm'),
+        legend.position = "top") +
+  ylab("Pop Size")
+
+plot(all_people_plot)
+ggsave(here::here("Images2", "all_people_combined.png"), all_people_plot, width = 20, height = 10, dpi = 900)
+```
+
+
+```{r}
+# Population Size Perc Diff
+diff_all_people_plot <- ggplot(data=combined_transposed, aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = diff_all_ppl_real, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = diff_all_ppl_tworeal, colour = "tworeal"), lwd = 1.2) +
+  scale_colour_manual(values = c("real" = "red",
+                                 "tworeal" = "blue")) +
+  scale_x_continuous(breaks = seq(0,50,10)) +
+  ggtitle("% Diff Population Size") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 25),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold")) +
+  ylab("% Diff")
+
+plot(diff_all_people_plot)
+ggsave(here::here("Images", "all_people_diff.png"), diff_all_people_plot, width = 20, height = 10, dpi = 900)
+
+
+# Population Size Colour postconflict
+all_people_plot_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_all_ppl, colour = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_all_ppl, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_all_ppl, colour = "tworeal"), lwd = 1.2) +
+  scale_colour_manual(values = c("base" = "black",
+                                 "real" = "red",
+                                 "tworeal" = "blue")) +
+  scale_x_continuous(breaks = seq(15,25,1)) +
+  ggtitle("Population Size (Closed Population)") +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 25, face = "bold"),
+        axis.text = element_text(size = 25),
+        plot.title = element_text(size = 25, face = "bold")) +
+  ylab("Pop Size")
+
+plot(all_people_plot_postconflict)
+ggsave(here::here("Images", "all_people_combined_postconflict.png"), all_people_plot_postconflict, width = 20, height = 10, dpi = 900)
+
+# Population Size Perc Diff Postconflict
+diff_all_people_plot_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = diff_all_ppl_real, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = diff_all_ppl_tworeal, colour = "tworeal"), lwd = 1.2) +
+  scale_colour_manual(values = c("real" = "red",
+                                 "tworeal" = "blue")) +
+  scale_x_continuous(breaks = seq(15,25,1)) +
+  ggtitle("% Diff Population Size") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 25),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold")) +
+  ylab("% Diff")
+
+plot(diff_all_people_plot_postconflict)
+ggsave(here::here("Images", "all_people_diff_postconflict.png"), diff_all_people_plot_postconflict, width = 20, height = 10, dpi = 900)
+
+```
+\newpage
+
+## [3.2] Female Marriage Rate
+
+```{r}
+# Uncoloured
+female_marriage_plot <- ggplot(data=combined_transposed, aes(x=year)) + 
+  geom_line(aes(y = base_female_marriageRate, linetype = "base")) +
+  geom_line(aes(y = real_female_marriageRate, linetype = "real")) +
+  geom_line(aes(y = tworeal_female_marriageRate, linetype = "tworeal")) +
+   scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Female Marriage Rate") +
+  theme_minimal()
+
+plot(female_marriage_plot)
+
+# Coloured
+female_marriage <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_female_marriageRate, colour = "base"), lwd=1.2) +
+  geom_line(aes(y = real_female_marriageRate, colour = "real"), lwd=1.2) +
+  geom_line(aes(y = tworeal_female_marriageRate, colour = "tworeal"), lwd=1.2) +
+   scale_colour_manual(values = c("base" = "black", 
+                                   "real" = "blue",
+                                   "tworeal" = "red")) +
+  ggtitle("Female Marriage Rate") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        text = element_text(size = 13),
+        legend.key.size = unit(4,'cm'),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(female_marriage)
+ggsave(here::here("Images", "female_marriage.png"), female_marriage, width = 20, height = 10, dpi = 900)
+
+# Postconflict
+female_marriage_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_female_marriageRate, colour = "base"), lwd=1.2) +
+  geom_line(aes(y = real_female_marriageRate, colour = "real"), lwd=1.2) +
+  geom_line(aes(y = tworeal_female_marriageRate, colour = "tworeal"), lwd=1.2) +
+  #geom_vline(xintercept = 19, lwd=1.2, linetype="dashed") +
+  #geom_vline(xintercept = 23, lwd=1.2, linetype="dashed") +
+   scale_colour_manual(values = c("base" = "black", 
+                                   "real" = "blue",
+                                   "tworeal" = "red")) +
+  scale_x_continuous(breaks=seq(15,25,1)) +
+  ggtitle("Female Marriage Rate") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.key.size = unit(4, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(female_marriage_postconflict)
+ggsave(here::here("Images", "female_marriage_postconflict.png"), female_marriage_postconflict, width = 20, height = 10, dpi = 900)
+```
+
+\newpage
+
+## [3.3] Male Marriage Rate
+
+```{r}
+# Uncoloured
+male_marriage_plot <- ggplot(data=combined_transposed, aes(x=year)) + 
+  geom_line(aes(y = base_male_marriageRate, linetype = "base")) +
+  geom_line(aes(y = real_male_marriageRate, linetype = "real")) +
+  geom_line(aes(y = tworeal_male_marriageRate, linetype = "tworeal")) +
+   scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Male Marriage Rate") +
+  theme_minimal()
+
+plot(male_marriage_plot)
+
+# Coloured
+male_marriage <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_male_marriageRate, colour = "base"), lwd=1.2) +
+  geom_line(aes(y = real_male_marriageRate, colour = "real"), lwd=1.2) +
+  geom_line(aes(y = tworeal_male_marriageRate, colour = "tworeal"), lwd=1.2) +
+   scale_colour_manual(values = c("base" = "black", 
+                                   "real" = "blue",
+                                   "tworeal" = "red")) +
+  ggtitle("Male Marriage Rate") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.key.size = unit(4, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(male_marriage)
+ggsave(here::here("Images", "male_marriage.png"), male_marriage, width = 20, height = 10, dpi = 900)
+
+# Postconflict
+male_marriage_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_male_marriageRate, colour = "base"), lwd=1.2) +
+  geom_line(aes(y = real_male_marriageRate, colour = "real"), lwd=1.2) +
+  geom_line(aes(y = tworeal_male_marriageRate, colour = "tworeal"), lwd=1.2) +
+  #geom_vline(xintercept = 19, lwd=1.2, linetype="dashed") +
+  #geom_vline(xintercept = 23, lwd=1.2, linetype="dashed") +
+   scale_colour_manual(values = c("base" = "black", 
+                                   "real" = "blue",
+                                   "tworeal" = "red")) +
+  scale_x_continuous(breaks=seq(15,25,1)) +
+  ggtitle("Male Marriage Rate") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.key.size = unit(4, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  ylab("Rates")
+
+plot(male_marriage_postconflict)
+ggsave(here::here("Images", "male_marriage_postconflict.png"), male_marriage_postconflict, width = 20, height = 10, dpi = 900)
+
+```
+
+## [3.4] Birth Rate
+
+```{r}
+# Birth Rate -- linetype
+
+birthRate_plot <- ggplot(data=combined_transposed, aes(x=year)) + 
+  geom_line(aes(y = base_birthRate, linetype = "base")) +
+  geom_line(aes(y = real_birthRate, linetype = "real")) +
+  geom_line(aes(y = tworeal_birthRate, linetype = "tworeal")) +
+   scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Birth Rate") +
+  theme_minimal()
+
+plot(birthRate_plot)
+
+# Birth Rate -- colour
+birthRate_colour <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_birthRate, colour = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_birthRate, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_birthRate, colour = "tworeal"), lwd = 1.2) +
+  scale_colour_manual(values = c("base" = "black",
+                                 "real" = "blue",
+                                 "tworeal" = "red")) +
+  ggtitle("Birth Rate") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold")) +
+  ylab("Birth Rate")
+
+plot(birthRate_colour)
+ggsave(here::here("Images", "birthRate.png"), birthRate_colour, width = 20, height = 10, dpi = 900)
+
+# Birth Rate -- postconflict
+birthRate_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x=year)) + 
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_birthRate, colour = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_birthRate, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_birthRate, colour = "tworeal"), lwd = 1.2) +
+  scale_colour_manual(values = c("base" = "black",
+                                 "real" = "blue",
+                                 "tworeal" = "red")) +
+  scale_x_continuous(breaks = seq(15,25,1)) +
+  ggtitle("Birth Rate") +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"),
+        legend.key.size = unit(4, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  ylab("Birth Rate")
+
+plot(birthRate_postconflict)
+ggsave(here::here("Images", "birthRate_postconflict.png"), birthRate_postconflict, width = 20, height = 10, dpi = 900)
+
+```
+
+```{r}
+# Whole period
+diff_birthRate <- combined_transposed %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = diff_birthRate_real, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = diff_birthRate_tworeal, colour = "tworeal"), lwd = 1.2) + 
+  scale_colour_manual(values = c("real" = "blue",
+                                 "tworeal" = "red")) +
+  ggtitle("% Diff Birth Rate") +
+  theme_minimal() +
+  ylab("% Diff") +
+  scale_x_continuous(breaks = seq(0,50,10)) +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"))
+
+plot(diff_birthRate)
+ggsave(here::here("Images", "birthRate_diff.png"), diff_birthRate, width = 20, height = 10, dpi = 700)
+
+# Postconflict period
+diff_birthRate_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = diff_birthRate_real, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = diff_birthRate_tworeal, colour = "tworeal"), lwd = 1.2) + 
+  scale_colour_manual(values = c("real" = "blue",
+                                 "tworeal" = "red")) +
+  ggtitle("% Diff Birth Rate") +
+  theme_minimal() +
+  ylab("% Diff") +
+  scale_x_continuous(breaks = seq(15,25,1)) +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"))
+
+plot(diff_birthRate_postconflict)
+ggsave(here::here("Images", "birthRate_diff_postconflict.png"), diff_birthRate_postconflict, width = 20, height = 10, dpi = 700)
+
+```
+
+
+# [4] Cross-correlations and regressions
+
+## [4.1] All_People and birthRate 
+
+### [4.1.1] Base Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_base <- ccf(combined_transposed$base_birthRate, combined_transposed$base_all_ppl,
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Base)")
+#ccf_all_ppl_birthRate_base
+
+#lag2.plot(combined_transposed$base_birthRate, combined_transposed$base_all_ppl,10,
+#          main = "Birth rate & All_People (Base)")
+
+#ccf_all_ppl_birthRate_base_prewar <- ccf(combined_transposed$base_birthRate[1:15], combined_transposed$base_all_ppl[1:15],
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Base)")
+
+ccf_all_ppl_birthRate_base <- ccf(combined_transposed$base_birthRate[16:50], combined_transposed$base_all_ppl[16:50],
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Base)")
+
+ccf_all_ppl_birthRate_base
+
+
+```
+
+### [4.1.2] Real Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_real_prewar <- ccf(combined_transposed$real_birthRate[1:15], combined_transposed$real_all_ppl[1:15], 
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Real)")
+
+ccf_all_ppl_birthRate_real <- ccf(combined_transposed$real_birthRate[16:50], combined_transposed$real_all_ppl[16:50], 
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Real)")
+
+ccf_all_ppl_birthRate_real
+```
+
+### [4.1.3] Tworeal Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_tworeal_prewar <- ccf(combined_transposed$tworeal_birthRate[1:15], combined_transposed$tworeal_all_ppl[1:15], 
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Tworeal)")
+
+ccf_all_ppl_birthRate_tworeal <- ccf(combined_transposed$tworeal_birthRate[16:50], combined_transposed$tworeal_all_ppl[16:50], 
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Tworeal)")
+ccf_all_ppl_birthRate_tworeal
+```
+
+## [4.2] Birth and female_Marriage
+
+### [4.2.1] Base scenario
+
+```{r}
+#ccf_birth_female_Marriage_base_prewar <- ccf(combined_transposed$base_female_marriageRate[1:15], combined_transposed$base_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Base)")
+
+ccf_birth_female_Marriage_base <- ccf(combined_transposed$base_female_marriageRate[16:50], combined_transposed$base_birthRate[16:50],
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Base)")
+ccf_birth_female_Marriage_base
+```
+
+### [4.2.2] Real scenario
+
+```{r}
+#ccf_birth_female_Marriage_real_prewar <- ccf(combined_transposed$real_female_marriageRate[1:15], combined_transposed$real_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Real)")
+
+ccf_birth_female_Marriage_real <- ccf(combined_transposed$real_female_marriageRate[16:50], combined_transposed$real_birthRate[16:50],
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Real)")
+ccf_birth_female_Marriage_real
+```
+
+### [4.2.3] TwoReal scenario
+
+```{r}
+#ccf_birth_female_Marriage_tworeal_prewar <- ccf(combined_transposed$tworeal_female_marriageRate[1:15],
+#                                                combined_transposed$tworeal_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Tworeal)")
+
+ccf_birth_female_Marriage_tworeal <- ccf(combined_transposed$tworeal_female_marriageRate[16:50], combined_transposed$tworeal_birthRate[16:50],
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Tworeal)")
+ccf_birth_female_Marriage_tworeal
+```
+
+## [4.3] Birth and male_Marriage
+
+### [4.3.1] Base Scenario
+
+```{r}
+#ccf_birth_male_Marriage_base_prewar <- ccf(combined_transposed$base_male_marriageRate[1:15], combined_transposed$base_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Base)")
+
+ccf_birth_male_Marriage_base <- ccf(combined_transposed$base_male_marriageRate[16:50], combined_transposed$base_birthRate[16:50],
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Base)")
+ccf_birth_male_Marriage_base
+```
+
+
+### [4.3.2] Real Scenario
+```{r}
+#ccf_birth_male_Marriage_real_prewar <- ccf(combined_transposed$real_male_marriageRate[1:15], combined_transposed$real_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Real)")
+
+ccf_birth_male_Marriage_real <- ccf(combined_transposed$real_male_marriageRate[16:50], combined_transposed$real_birthRate[16:50],
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Real)")
+ccf_birth_male_Marriage_real
+```
+
+### [4.3.3] TwoReal Scenario
+```{r}
+#ccf_birth_male_Marriage_tworeal_prewar <- ccf(combined_transposed$tworeal_male_marriageRate[1:15], combined_transposed$tworeal_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Tworeal)")
+
+ccf_birth_male_Marriage_tworeal <- ccf(combined_transposed$tworeal_male_marriageRate[16:50], combined_transposed$tworeal_birthRate[16:50],
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Tworeal)")
+ccf_birth_male_Marriage_tworeal
+```
+
+# [5] Cross-correlations and regressions (Conflict Period)
+
+```{r}
+combined_transposed_conflict <- combined_transposed[17:21, ]
+combined_transposed_postconflict <- combined_transposed[20:50, ]
+```
+
+## [5.1] All_People and birthRate 
+
+### [5.1.1] Base Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_base <- ccf(combined_transposed$base_birthRate, combined_transposed$base_all_ppl,
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Base)")
+#ccf_all_ppl_birthRate_base
+
+#lag2.plot(combined_transposed$base_birthRate, combined_transposed$base_all_ppl,10,
+#          main = "Birth rate & All_People (Base)")
+
+#ccf_all_ppl_birthRate_base_prewar <- ccf(combined_transposed$base_birthRate[1:15], combined_transposed$base_all_ppl[1:15],
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Base)")
+
+ccf_all_ppl_birthRate_base_conflict <- ccf(combined_transposed_conflict$base_birthRate, combined_transposed_conflict$base_all_ppl,
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Base) -- Conflict")
+
+ccf_all_ppl_birthRate_base_conflict
+
+
+```
+
+### [5.1.2] Real Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_real_prewar <- ccf(combined_transposed$real_birthRate[1:15], combined_transposed$real_all_ppl[1:15], 
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Real)")
+
+ccf_all_ppl_birthRate_real_conflict <- ccf(combined_transposed_conflict$real_birthRate, combined_transposed_conflict$real_all_ppl, 
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Real) -- Conflict")
+
+ccf_all_ppl_birthRate_real_conflict
+```
+
+### [5.1.3] Tworeal Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_tworeal_prewar <- ccf(combined_transposed$tworeal_birthRate[1:15], combined_transposed$tworeal_all_ppl[1:15], 
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Tworeal)")
+
+ccf_all_ppl_birthRate_tworeal_conflict <- ccf(combined_transposed_conflict$tworeal_birthRate,
+                                              combined_transposed_conflict$tworeal_all_ppl, 
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Tworeal) -- Conflict")
+
+ccf_all_ppl_birthRate_tworeal_conflict
+```
+
+## [5.2] Birth and female_Marriage
+
+### [5.2.1] Base scenario
+
+```{r}
+#ccf_birth_female_Marriage_base_prewar <- ccf(combined_transposed$base_female_marriageRate[1:15], combined_transposed$base_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Base)")
+
+ccf_birth_female_Marriage_base_conflict <- ccf(combined_transposed_conflict$base_female_marriageRate, combined_transposed_conflict$base_birthRate,
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Base) -- Conflict")
+ccf_birth_female_Marriage_base_conflict
+```
+
+### [5.2.2] Real scenario
+
+```{r}
+#ccf_birth_female_Marriage_real_prewar <- ccf(combined_transposed$real_female_marriageRate[1:15], combined_transposed$real_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Real)")
+
+ccf_birth_female_Marriage_real_conflict <- ccf(combined_transposed_conflict$real_female_marriageRate, combined_transposed_conflict$real_birthRate,
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Real) -- Conflict")
+ccf_birth_female_Marriage_real
+```
+
+### [5.2.3] TwoReal scenario
+
+```{r}
+#ccf_birth_female_Marriage_tworeal_prewar <- ccf(combined_transposed$tworeal_female_marriageRate[1:15],
+#                                                combined_transposed$tworeal_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Tworeal)")
+
+ccf_birth_female_Marriage_tworeal_conflict <- ccf(combined_transposed_conflict$tworeal_female_marriageRate,
+                                                  combined_transposed_conflict$tworeal_birthRate,
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Tworeal) -- Conflict")
+ccf_birth_female_Marriage_tworeal_conflict
+```
+
+## [5.3] Birth and male_Marriage
+
+### [5.3.1] Base Scenario
+
+```{r}
+#ccf_birth_male_Marriage_base_prewar <- ccf(combined_transposed$base_male_marriageRate[1:15], combined_transposed$base_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Base)")
+
+ccf_birth_male_Marriage_base_conflict <- ccf(combined_transposed_conflict$base_male_marriageRate,
+                                             combined_transposed_conflict$base_birthRate,
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Base) -- Conflict")
+ccf_birth_male_Marriage_base_conflict
+```
+
+
+### [5.3.2] Real Scenario
+```{r}
+#ccf_birth_male_Marriage_real_prewar <- ccf(combined_transposed$real_male_marriageRate[1:15], combined_transposed$real_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Real)")
+
+ccf_birth_male_Marriage_real_conflict <- ccf(combined_transposed_conflict$real_male_marriageRate, 
+                                    combined_transposed_conflict$real_birthRate,
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Real) -- Conflict")
+ccf_birth_male_Marriage_real_conflict
+```
+
+### [5.3.3] TwoReal Scenario
+```{r}
+#ccf_birth_male_Marriage_tworeal_prewar <- ccf(combined_transposed$tworeal_male_marriageRate[1:15], combined_transposed$tworeal_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Tworeal)")
+
+ccf_birth_male_Marriage_tworeal_conflict <- ccf(combined_transposed_conflict$tworeal_male_marriageRate,
+                                                combined_transposed_conflict$tworeal_birthRate,
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Tworeal) -- Conflict")
+ccf_birth_male_Marriage_tworeal_conflict
+```
+
+# [6] Cross-correlations and regressions (Post-Conflict Period)
+
+## [6.1] All_People and birthRate 
+
+### [6.1.1] Base Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_base <- ccf(combined_transposed$base_birthRate, combined_transposed$base_all_ppl,
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Base)")
+#ccf_all_ppl_birthRate_base
+
+#lag2.plot(combined_transposed$base_birthRate, combined_transposed$base_all_ppl,10,
+#          main = "Birth rate & All_People (Base)")
+
+#ccf_all_ppl_birthRate_base_prewar <- ccf(combined_transposed$base_birthRate[1:15], combined_transposed$base_all_ppl[1:15],
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Base)")
+
+ccf_all_ppl_birthRate_base_postconflict <- ccf(combined_transposed_postconflict$base_birthRate, 
+                                               combined_transposed_postconflict$base_all_ppl,
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Base) -- post-Conflict")
+
+ccf_all_ppl_birthRate_base_postconflict
+```
+
+### [6.1.2] Real Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_real_prewar <- ccf(combined_transposed$real_birthRate[1:15], combined_transposed$real_all_ppl[1:15], 
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Real)")
+
+ccf_all_ppl_birthRate_real_postconflict <- ccf(combined_transposed_postconflict$real_birthRate,
+                                               combined_transposed_postconflict$real_all_ppl, 
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Real) -- post-Conflict")
+
+ccf_all_ppl_birthRate_real_postconflict
+```
+
+### [6.1.3] Tworeal Scenario
+
+```{r}
+#ccf_all_ppl_birthRate_tworeal_prewar <- ccf(combined_transposed$tworeal_birthRate[1:15], combined_transposed$tworeal_all_ppl[1:15], 
+#                                  plot = TRUE,
+#                                  main = "Birth rate & All_People (Tworeal)")
+
+ccf_all_ppl_birthRate_tworeal_postconflict <- ccf(combined_transposed_postconflict$tworeal_birthRate,
+                                              combined_transposed_postconflict$tworeal_all_ppl, 
+                                  plot = TRUE,
+                                  main = "Birth rate & All_People (Tworeal) -- post-Conflict")
+
+ccf_all_ppl_birthRate_tworeal_postconflict
+```
+
+## [6.2] Birth and female_Marriage
+
+### [6.2.1] Base scenario
+
+```{r}
+#ccf_birth_female_Marriage_base_prewar <- ccf(combined_transposed$base_female_marriageRate[1:15], combined_transposed$base_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Base)")
+
+ccf_birth_female_Marriage_base_postconflict <- ccf(combined_transposed_postconflict$base_female_marriageRate,
+                                                   combined_transposed_postconflict$base_birthRate,
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Base) -- post-Conflict")
+ccf_birth_female_Marriage_base_postconflict
+```
+
+### [6.2.2] Real scenario
+
+```{r}
+#ccf_birth_female_Marriage_real_prewar <- ccf(combined_transposed$real_female_marriageRate[1:15], combined_transposed$real_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Real)")
+
+ccf_birth_female_Marriage_real_postconflict <- ccf(combined_transposed_postconflict$real_female_marriageRate,
+                                                   combined_transposed_postconflict$real_birthRate,
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Real) -- post-Conflict")
+ccf_birth_female_Marriage_real_postconflict
+```
+
+### [6.2.3] TwoReal scenario
+
+```{r}
+#ccf_birth_female_Marriage_tworeal_prewar <- ccf(combined_transposed$tworeal_female_marriageRate[1:15],
+#                                                combined_transposed$tworeal_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Female Marriage Rate & Birth Rate (Tworeal)")
+
+ccf_birth_female_Marriage_tworeal_postconflict <- ccf(combined_transposed_postconflict$tworeal_female_marriageRate,
+                                                  combined_transposed_postconflict$tworeal_birthRate,
+                                  plot = TRUE,
+                                  main = "Female Marriage Rate & Birth Rate (Tworeal) -- post-Conflict")
+ccf_birth_female_Marriage_tworeal_postconflict
+```
+
+## [6.3] Birth and male_Marriage
+
+### [6.3.1] Base Scenario
+
+```{r}
+#ccf_birth_male_Marriage_base_prewar <- ccf(combined_transposed$base_male_marriageRate[1:15], combined_transposed$base_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Base)")
+
+ccf_birth_male_Marriage_base_postconflict <- ccf(combined_transposed_postconflict$base_male_marriageRate,
+                                             combined_transposed_postconflict$base_birthRate,
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Base) -- post-Conflict")
+ccf_birth_male_Marriage_base_postconflict
+```
+
+
+### [6.3.2] Real Scenario
+```{r}
+#ccf_birth_male_Marriage_real_prewar <- ccf(combined_transposed$real_male_marriageRate[1:15], combined_transposed$real_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Real)")
+
+ccf_birth_male_Marriage_real_postconflict <- ccf(combined_transposed_postconflict$real_male_marriageRate, 
+                                    combined_transposed_postconflict$real_birthRate,
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Real) -- post-Conflict")
+ccf_birth_male_Marriage_real_postconflict
+```
+
+### [6.3.3] TwoReal Scenario
+```{r}
+#ccf_birth_male_Marriage_tworeal_prewar <- ccf(combined_transposed$tworeal_male_marriageRate[1:15], combined_transposed$tworeal_birthRate[1:15],
+#                                  plot = TRUE,
+#                                  main = "Male Marriage Rate & Birth Rate (Tworeal)")
+
+ccf_birth_male_Marriage_tworeal_postconflict <- ccf(combined_transposed_postconflict$tworeal_male_marriageRate,
+                                                combined_transposed_postconflict$tworeal_birthRate,
+                                  plot = TRUE,
+                                  main = "Male Marriage Rate & Birth Rate (Tworeal) --post- Conflict")
+ccf_birth_male_Marriage_tworeal_postconflict
+```
+
+\newpage
+
+# [6] OLS Models
+
+## [6.1] All years
+
+### [6.1.1] All_People ~ Birth Rate
+
+```{r}
+# Function to lag variables
+
+lag_variables <- function(data, var, num_lags) {
+  for (i in 1:num_lags) {
+    new_var <- paste0("lagged", i, "_", var)
+    data <- data %>% 
+      mutate(!!new_var := dplyr::lag(!!sym(var), n = i))
+  }
+  return(data)
+}
+
+lagged_data <- combined_transposed %>%
+  filter(year >= 17) %>%
+  mutate(postconflict = ifelse(year >= 22, 1, 0)) %>%
+  lag_variables(var = c("base_male_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("real_male_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("tworeal_male_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("base_female_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("real_female_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("tworeal_female_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("base_birthRate"), num_lags = 10) %>%
+  lag_variables(var = c("real_birthRate"), num_lags = 10) %>%
+  lag_variables(var = c("tworeal_birthRate"), num_lags = 10) %>%
+  select(year, postconflict, base_all_ppl, real_all_ppl, tworeal_all_ppl,
+         base_male_marriageRate,real_male_marriageRate, tworeal_male_marriageRate,
+         base_female_marriageRate, real_female_marriageRate, tworeal_female_marriageRate,
+         base_birthRate, real_birthRate, tworeal_birthRate,
+         contains(c("lagged")))
+  
+
+#  filter(wave == 9) %>%
+#  select(pidp, fimngrs_dv, ethn,male,emp_status, contains(c("lagged"))) %>%
+#  drop_na()
+
+m0_ppl <- lm(base_all_ppl ~ base_birthRate + lagged1_base_birthRate + 
+              lagged2_base_birthRate + lagged3_base_birthRate +
+              lagged4_base_birthRate + lagged5_base_birthRate +
+              lagged6_base_birthRate + lagged7_base_birthRate +
+              lagged8_base_birthRate + lagged9_base_birthRate +
+              lagged10_base_birthRate,
+             data=lagged_data)
+
+m1_ppl <- lm(real_all_ppl ~ real_birthRate + lagged1_real_birthRate + 
+                lagged2_real_birthRate + lagged3_real_birthRate +
+                lagged4_real_birthRate + lagged5_real_birthRate +
+                lagged6_real_birthRate + lagged7_real_birthRate +
+                lagged8_real_birthRate + lagged9_real_birthRate +
+                lagged10_real_birthRate, data=lagged_data)
+
+m2_ppl <- lm(tworeal_all_ppl ~ tworeal_birthRate + lagged1_tworeal_birthRate + 
+                lagged2_tworeal_birthRate + lagged3_tworeal_birthRate +
+                lagged4_tworeal_birthRate + lagged5_tworeal_birthRate +
+                lagged6_tworeal_birthRate + lagged7_tworeal_birthRate +
+                lagged8_tworeal_birthRate + lagged9_tworeal_birthRate +
+                lagged10_tworeal_birthRate, data=lagged_data)
+
+m0.2_ppl <- lm(base_all_ppl ~ base_birthRate + lagged1_base_birthRate +
+                 lagged2_base_birthRate + lagged3_base_birthRate +
+                 lagged4_base_birthRate + lagged5_base_birthRate +
+                 lagged6_base_birthRate + lagged7_base_birthRate +
+                 lagged8_base_birthRate + lagged9_base_birthRate +
+                 lagged10_base_birthRate + 
+                 base_birthRate * postconflict +
+                 lagged1_base_birthRate * postconflict +
+                 lagged2_base_birthRate * postconflict +
+                 lagged3_base_birthRate * postconflict +
+                 lagged4_base_birthRate * postconflict +
+                 lagged5_base_birthRate * postconflict +
+                 lagged6_base_birthRate * postconflict +
+                 lagged7_base_birthRate * postconflict +
+                 lagged8_base_birthRate * postconflict +
+                 lagged9_base_birthRate * postconflict +
+                 lagged10_base_birthRate * postconflict,
+               data=lagged_data)
+
+m0.3_ppl <- lm(base_all_ppl ~ base_birthRate + lagged1_base_birthRate +
+                 lagged2_base_birthRate + lagged3_base_birthRate +
+                 lagged4_base_birthRate + lagged5_base_birthRate +
+                 lagged6_base_birthRate + lagged7_base_birthRate +
+                 lagged8_base_birthRate + 
+                 base_birthRate * postconflict +
+                 lagged1_base_birthRate * postconflict +
+                 lagged2_base_birthRate * postconflict +
+                 lagged3_base_birthRate * postconflict +
+                 lagged4_base_birthRate * postconflict +
+                 lagged5_base_birthRate * postconflict +
+                 lagged6_base_birthRate * postconflict +
+                 lagged7_base_birthRate * postconflict +
+                 lagged8_base_birthRate * postconflict,
+               data=lagged_data)
+
+
+
+
+m1.2_ppl <- lm(real_all_ppl ~ real_birthRate + lagged1_real_birthRate +
+                            lagged2_real_birthRate + lagged3_real_birthRate + lagged4_real_birthRate + 
+                            lagged6_real_birthRate + lagged7_real_birthRate + lagged8_real_birthRate +
+                            lagged9_real_birthRate + lagged10_real_birthRate + lagged5_real_birthRate +
+                            real_birthRate * postconflict +
+                            lagged1_real_birthRate * postconflict +
+                            lagged2_real_birthRate * postconflict +
+                            lagged3_real_birthRate * postconflict +
+                            lagged4_real_birthRate * postconflict +
+                            lagged5_real_birthRate * postconflict +
+                            lagged6_real_birthRate * postconflict +
+                            lagged7_real_birthRate * postconflict +
+                            lagged8_real_birthRate * postconflict +
+                            lagged9_real_birthRate * postconflict +
+                            lagged10_real_birthRate * postconflict,
+                            data=lagged_data)
+
+m1.3_ppl <- lm(real_all_ppl ~ real_birthRate + lagged1_real_birthRate +
+                 lagged2_real_birthRate + lagged3_real_birthRate +
+                 lagged4_real_birthRate + lagged5_real_birthRate +
+                 lagged6_real_birthRate + lagged7_real_birthRate +
+                 lagged8_real_birthRate + 
+                 real_birthRate * postconflict +
+                 lagged1_real_birthRate * postconflict +
+                 lagged2_real_birthRate * postconflict +
+                 lagged3_real_birthRate * postconflict +
+                 lagged4_real_birthRate * postconflict +
+                 lagged5_real_birthRate * postconflict +
+                 lagged6_real_birthRate * postconflict +
+                 lagged7_real_birthRate * postconflict +
+                 lagged8_real_birthRate * postconflict,
+               data=lagged_data)
+
+summary(m0.3_ppl)
+summary(m1.3_ppl)
+
+
+
+m2.2_ppl <- lm(tworeal_all_ppl ~ tworeal_birthRate + lagged1_tworeal_birthRate +
+                            lagged2_tworeal_birthRate + lagged3_tworeal_birthRate +
+                            lagged4_tworeal_birthRate + lagged5_tworeal_birthRate +
+                            lagged6_tworeal_birthRate + lagged7_tworeal_birthRate +
+                            lagged8_tworeal_birthRate + lagged9_tworeal_birthRate +
+                            lagged10_tworeal_birthRate +
+                            tworeal_birthRate * postconflict +
+                            lagged1_tworeal_birthRate * postconflict +
+                            lagged2_tworeal_birthRate * postconflict +
+                            lagged3_tworeal_birthRate * postconflict +
+                            lagged4_tworeal_birthRate * postconflict +
+                            lagged5_tworeal_birthRate * postconflict +
+                            lagged6_tworeal_birthRate * postconflict +
+                            lagged7_tworeal_birthRate * postconflict +
+                            lagged8_tworeal_birthRate * postconflict +
+                            lagged9_tworeal_birthRate * postconflict +
+                            lagged10_tworeal_birthRate * postconflict,
+                            data=lagged_data)
+
+```
+
+
+Base scenario
+
+```{r}
+stargazer(m0_ppl, m0.2_ppl,
+          title = "Base Scenario -- AllPeople ~ birthRate",
+          dep.var.labels = c("All People"),
+          style = "demography",
+          single.row = T,
+          type = "text")
+```
+
+Real Scenario
+
+```{r}
+
+stargazer(m1_ppl, m1.2_ppl, type = "text", 
+          title = "Real Scenario -- AllPeople ~ birthRate",
+          dep.var.labels = c("All People"),
+          style = "demography",
+          align = T,
+          single.row=T)
+```
+
+TwoReal Scenario
+
+```{r}
+stargazer(m2_ppl, m2.2_ppl, 
+          title = "Base Scenario -- AllPeople ~ birthRate",
+          dep.var.labels = c("All People"),
+          style = "demography",
+          type = "text", single.row=T)
+```
+
+<!--
+Base Scenario
+
+```{r}
+kable(tidy(m0_ppl))
+```
+
+Base Scenario (Dummy interaction)
+
+```{r}
+kable(tidy(m0.2_ppl))
+```
+
+
+Real Scenario
+
+```{r}
+kable(tidy(m1_ppl))
+```
+
+Real Scenario (Dummy interaction)
+
+```{r}
+kable(tidy(m1.2_ppl))
+```
+
+Tworeal Scenario
+
+```{r}
+kable(tidy(m2_ppl))
+```
+
+Tworeal Scenario (Dummy interaction)
+
+```{r}
+kable(tidy(m2.2_ppl))
+```
+
+--> 
+
+### [6.1.2] Birth Rates ~ Male Marriage
+
+```{r}
+m0_birth_male <- lm(base_birthRate ~ base_male_marriageRate + 
+                 lagged1_base_male_marriageRate + lagged2_base_male_marriageRate +
+                 lagged3_base_male_marriageRate + lagged4_base_male_marriageRate +
+                 lagged5_base_male_marriageRate,
+                 data = lagged_data)
+
+m1_birth_male <- lm(real_birthRate ~ real_male_marriageRate + 
+                 lagged1_real_male_marriageRate + lagged2_real_male_marriageRate +
+                 lagged3_real_male_marriageRate + lagged4_real_male_marriageRate +
+                 lagged5_real_male_marriageRate,
+                 data = lagged_data)
+
+m2_birth_male <- lm(tworeal_birthRate ~ tworeal_male_marriageRate + 
+                 lagged1_tworeal_male_marriageRate + lagged2_tworeal_male_marriageRate +
+                 lagged3_tworeal_male_marriageRate + lagged4_tworeal_male_marriageRate +
+                 lagged5_tworeal_male_marriageRate,
+                 data = lagged_data)
+
+m0.2_birth_male <- lm(base_birthRate ~ base_male_marriageRate + 
+                 lagged1_base_male_marriageRate + lagged2_base_male_marriageRate +
+                 lagged3_base_male_marriageRate + lagged4_base_male_marriageRate +
+                 lagged5_base_male_marriageRate +
+                 base_male_marriageRate * postconflict +
+                 lagged1_base_male_marriageRate * postconflict +
+                 lagged2_base_male_marriageRate * postconflict +
+                 lagged3_base_male_marriageRate * postconflict +
+                 lagged4_base_male_marriageRate * postconflict +
+                 lagged5_base_male_marriageRate * postconflict,
+                 data = lagged_data)
+
+m1.2_birth_male <- lm(real_birthRate ~ real_male_marriageRate + 
+                 lagged1_real_male_marriageRate + lagged2_real_male_marriageRate +
+                 lagged3_real_male_marriageRate + lagged4_real_male_marriageRate +
+                 lagged5_real_male_marriageRate +
+                 real_male_marriageRate * postconflict +
+                 lagged1_real_male_marriageRate * postconflict +
+                 lagged2_real_male_marriageRate * postconflict +
+                 lagged3_real_male_marriageRate * postconflict +
+                 lagged4_real_male_marriageRate * postconflict +
+                 lagged5_real_male_marriageRate * postconflict,
+                 data = lagged_data)
+
+m2.2_birth_male <- lm(tworeal_birthRate ~ tworeal_male_marriageRate + 
+                 lagged1_tworeal_male_marriageRate + lagged2_tworeal_male_marriageRate +
+                 lagged3_tworeal_male_marriageRate + lagged4_tworeal_male_marriageRate +
+                 lagged5_tworeal_male_marriageRate +
+                 tworeal_male_marriageRate * postconflict +
+                 lagged1_tworeal_male_marriageRate * postconflict +
+                 lagged2_tworeal_male_marriageRate * postconflict +
+                 lagged3_tworeal_male_marriageRate * postconflict +
+                 lagged4_tworeal_male_marriageRate * postconflict +
+                 lagged5_tworeal_male_marriageRate * postconflict,
+                 data = lagged_data)
+
+```
+
+<!-- Base
+
+```{r}
+kable(tidy(m0_birth_male))
+```
+
+Base (Dummy Interaction)
+
+```{r}
+kable(tidy(m0.2_birth_male))
+```
+
+
+Real
+
+```{r}
+kable(tidy(m1_birth_male))
+```
+
+Real (Dummy Interation)
+
+```{r}
+kable(tidy(m1.2_birth_male))
+```
+
+Tworeal
+
+```{r}
+kable(tidy(m2_birth_male))
+```
+
+Tworeal (Dummy Interaction)
+
+```{r}
+kable(tidy(m2.2_birth_male))
+```
+-->
+
+Base Scenario
+
+```{r}
+stargazer(m0_birth_male, m0.2_birth_male, 
+          title = "Base Scenario -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+Real Scenario
+
+```{r}
+stargazer(m1_birth_male, m1.2_birth_male, 
+          title = "Real Scenario -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Tworeal Scenario
+
+```{r}
+stargazer(m2_birth_male, m2.2_birth_male, 
+          title = "Tworeal Scenario -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+### [6.1.3] Birth Rates ~ Female Marriage
+
+```{r}
+m0_birth_female <- lm(base_birthRate ~ base_female_marriageRate + 
+                 lagged1_base_female_marriageRate + lagged2_base_female_marriageRate +
+                 lagged3_base_female_marriageRate + lagged4_base_female_marriageRate +
+                 lagged5_base_female_marriageRate,
+                 data = lagged_data)
+
+m1_birth_female <- lm(real_birthRate ~ real_female_marriageRate + 
+                 lagged1_real_female_marriageRate + lagged2_real_female_marriageRate +
+                 lagged3_real_female_marriageRate + lagged4_real_female_marriageRate +
+                 lagged5_real_female_marriageRate,
+                 data = lagged_data)
+m2_birth_female <- lm(tworeal_birthRate ~ tworeal_female_marriageRate + 
+                 lagged1_tworeal_female_marriageRate + lagged2_tworeal_female_marriageRate +
+                 lagged3_tworeal_female_marriageRate + lagged4_tworeal_female_marriageRate +
+                 lagged5_tworeal_female_marriageRate,
+                 data = lagged_data)
+
+m0.2_birth_female <- lm(base_birthRate ~ base_female_marriageRate + 
+                 lagged1_base_female_marriageRate + lagged2_base_female_marriageRate +
+                 lagged3_base_female_marriageRate + lagged4_base_female_marriageRate +
+                 lagged5_base_female_marriageRate +
+                 base_female_marriageRate * postconflict +
+                 lagged1_base_female_marriageRate * postconflict +
+                 lagged2_base_female_marriageRate * postconflict +
+                 lagged3_base_female_marriageRate * postconflict +
+                 lagged4_base_female_marriageRate * postconflict +
+                 lagged5_base_female_marriageRate * postconflict,
+                 data = lagged_data)
+
+m1.2_birth_female <- lm(real_birthRate ~ real_female_marriageRate + 
+                 lagged1_real_female_marriageRate + lagged2_real_female_marriageRate +
+                 lagged3_real_female_marriageRate + lagged4_real_female_marriageRate +
+                 lagged5_real_female_marriageRate +
+                 real_female_marriageRate * postconflict +
+                 lagged1_real_female_marriageRate * postconflict +
+                 lagged2_real_female_marriageRate * postconflict +
+                 lagged3_real_female_marriageRate * postconflict + 
+                 lagged4_real_female_marriageRate * postconflict +
+                 lagged5_real_female_marriageRate * postconflict,
+                 data = lagged_data)
+
+m2.2_birth_female <- lm(tworeal_birthRate ~ tworeal_female_marriageRate + 
+                 lagged1_tworeal_female_marriageRate + lagged2_tworeal_female_marriageRate +
+                 lagged3_tworeal_female_marriageRate + lagged4_tworeal_female_marriageRate +
+                 lagged5_tworeal_female_marriageRate +
+                 tworeal_female_marriageRate * postconflict +
+                 lagged1_tworeal_female_marriageRate * postconflict +
+                 lagged2_tworeal_female_marriageRate * postconflict +
+                 lagged3_tworeal_female_marriageRate * postconflict +
+                 lagged4_tworeal_female_marriageRate * postconflict +
+                 lagged5_tworeal_female_marriageRate * postconflict,
+                 data = lagged_data)
+
+```
+
+Base Scenario
+
+```{r}
+stargazer(m0_birth_female, m0.2_birth_female, 
+          title = "Base Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Real Scenario
+
+```{r}
+stargazer(m1_birth_female, m1.2_birth_female, 
+          title = "Real Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Tworeal Scenario
+
+```{r}
+stargazer(m2_birth_female, m2.2_birth_female, 
+          title = "Tworeal Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+<!--
+Base
+
+```{r}
+kable(tidy(m0_birth_female))
+```
+
+Real
+
+```{r}
+kable(tidy(m1_birth_female))
+```
+
+Tworeal
+
+```{r}
+kable(tidy(m2_birth_female))
+```
+-->
+
+## [6.2] Conflict Period
+
+### [6.2.1] All_People ~ Birth Rate
+
+```{r}
+
+lagged_data_conflict <- combined_transposed_conflict %>%
+  lag_variables(var = c("base_male_marriageRate"), num_lags = 3) %>%
+  lag_variables(var = c("real_male_marriageRate"), num_lags = 3) %>%
+  lag_variables(var = c("tworeal_male_marriageRate"), num_lags = 3) %>%
+  lag_variables(var = c("base_female_marriageRate"), num_lags = 3) %>%
+  lag_variables(var = c("real_female_marriageRate"), num_lags = 3) %>%
+  lag_variables(var = c("tworeal_female_marriageRate"), num_lags = 3) %>%
+  lag_variables(var = c("base_birthRate"), num_lags = 3) %>%
+  lag_variables(var = c("real_birthRate"), num_lags = 3) %>%
+  lag_variables(var = c("tworeal_birthRate"), num_lags = 3) %>%
+  select(year, base_all_ppl, real_all_ppl, tworeal_all_ppl,
+         base_male_marriageRate,real_male_marriageRate, tworeal_male_marriageRate,
+         base_female_marriageRate, real_female_marriageRate, tworeal_female_marriageRate,
+         base_birthRate, real_birthRate, tworeal_birthRate,
+         contains(c("lagged"))) 
+
+m0_ppl_conflict <- lm(base_all_ppl ~ base_birthRate + lagged1_base_birthRate + 
+                lagged2_base_birthRate + lagged3_base_birthRate, data=lagged_data_conflict)
+
+m1_ppl_conflict <- lm(real_all_ppl ~ real_birthRate + lagged1_real_birthRate + 
+                lagged2_real_birthRate + lagged3_real_birthRate, data=lagged_data_conflict)
+
+m2_ppl_conflict <- lm(tworeal_all_ppl ~ tworeal_birthRate + lagged1_tworeal_birthRate + 
+                lagged2_tworeal_birthRate + lagged3_tworeal_birthRate, data=lagged_data_conflict)
+
+```
+
+All Scenarios
+
+```{r}
+stargazer(m0_ppl_conflict, m1_ppl_conflict, m2_ppl_conflict, 
+          title = "All Scenarios -- allPeople ~ birthRate",
+          dep.var.labels = c("All People (Base)", "All People (Real)", "All People (Tworeal)"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+<!--
+```{r}
+kable(tidy(m0_ppl_conflict))
+```
+
+Real Scenario
+
+```{r}
+kable(tidy(m1_ppl_conflict))
+```
+Tworeal Scenario
+
+```{r}
+kable(tidy(m2_ppl_conflict))
+```
+-->
+
+### [6.2.2] Birth Rates ~ Male Marriage
+
+```{r}
+m0_birth_male_conflict <- lm(base_birthRate ~ base_male_marriageRate + 
+                 lagged1_base_male_marriageRate + lagged2_base_male_marriageRate +
+                 lagged3_base_male_marriageRate,
+                 data = lagged_data_conflict)
+
+m1_birth_male_conflict <- lm(real_birthRate ~ real_male_marriageRate + 
+                 lagged1_real_male_marriageRate + lagged2_real_male_marriageRate +
+                 lagged3_real_male_marriageRate,
+                 data = lagged_data_conflict)
+m2_birth_male_conflict <- lm(tworeal_birthRate ~ tworeal_male_marriageRate + 
+                 lagged1_tworeal_male_marriageRate + lagged2_tworeal_male_marriageRate +
+                 lagged3_tworeal_male_marriageRate,
+                 data = lagged_data_conflict)
+```
+
+Combined Scenarios
+
+```{r}
+stargazer(m0_birth_male_conflict, m1_birth_male_conflict, m2_birth_male_conflict,
+          title = "Combined Scenarios -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate (Base)", "birthRate (Real)", "birthRate (Tworeal)"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+<!--
+Base
+
+```{r}
+kable(tidy(m0_birth_male_conflict))
+```
+
+Real
+
+```{r}
+kable(tidy(m1_birth_male_conflict))
+```
+
+Tworeal
+
+```{r}
+kable(tidy(m2_birth_male_conflict))
+```
+
+-->
+
+### [6.2.3] Birth Rates ~ Female Marriage
+
+```{r}
+m0_birth_female_conflict <- lm(base_birthRate ~ base_female_marriageRate + 
+                 lagged1_base_female_marriageRate + lagged2_base_female_marriageRate +
+                 lagged3_base_female_marriageRate,
+                 data = lagged_data_conflict)
+
+m1_birth_female_conflict <- lm(real_birthRate ~ real_female_marriageRate + 
+                 lagged1_real_female_marriageRate + lagged2_real_female_marriageRate +
+                 lagged3_real_female_marriageRate,
+                 data = lagged_data_conflict)
+m2_birth_female_conflict <- lm(tworeal_birthRate ~ tworeal_female_marriageRate + 
+                 lagged1_tworeal_female_marriageRate + lagged2_tworeal_female_marriageRate +
+                 lagged3_tworeal_female_marriageRate,
+                 data = lagged_data_conflict)
+```
+
+Combined Scenarios
+
+```{r}
+stargazer(m0_birth_female_conflict, m1_birth_female_conflict, m2_birth_female_conflict, 
+          title = "Combined Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate (Base)", "birthRate (Real)", "birthRate (Tworeal)"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+<!--
+
+Base
+
+```{r}
+kable(tidy(m0_birth_female_conflict))
+```
+
+Real
+
+```{r}
+kable(tidy(m1_birth_female_conflict))
+```
+
+Tworeal
+
+```{r}
+kable(tidy(m2_birth_female_conflict))
+```
+
+-->
+
+## [6.3] Post-Conflict Period
+
+### [6.3.1] All_People ~ Birth Rate
+
+```{r}
+lagged_data_postconflict <- combined_transposed_postconflict %>%
+  mutate(yrs_since = year - 22) %>%
+  lag_variables(var = c("base_male_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("real_male_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("tworeal_male_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("base_female_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("real_female_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("tworeal_female_marriageRate"), num_lags = 10) %>%
+  lag_variables(var = c("base_birthRate"), num_lags = 10) %>%
+  lag_variables(var = c("real_birthRate"), num_lags = 10) %>%
+  lag_variables(var = c("tworeal_birthRate"), num_lags = 10) %>%
+  select(year, yrs_since, base_all_ppl, real_all_ppl, tworeal_all_ppl,
+         base_male_marriageRate,real_male_marriageRate, tworeal_male_marriageRate,
+         base_female_marriageRate, real_female_marriageRate, tworeal_female_marriageRate,
+         base_birthRate, real_birthRate, tworeal_birthRate,
+         contains(c("lagged"))) 
+
+m0_ppl_postconflict <- lm(base_all_ppl ~ base_birthRate + lagged1_base_birthRate +
+                            lagged2_base_birthRate + lagged3_base_birthRate +
+                            lagged4_base_birthRate + lagged5_base_birthRate +
+                            lagged6_base_birthRate + lagged7_base_birthRate +
+                            lagged8_base_birthRate + lagged9_base_birthRate +
+                            lagged10_base_birthRate, data=lagged_data_postconflict)
+
+m1_ppl_postconflict <- lm(real_all_ppl ~ real_birthRate + lagged1_real_birthRate +
+                            lagged2_real_birthRate + lagged3_real_birthRate +
+                            lagged4_real_birthRate + lagged5_real_birthRate +
+                            lagged6_real_birthRate + lagged7_real_birthRate +
+                            lagged8_real_birthRate + lagged9_real_birthRate +
+                            lagged10_real_birthRate, data=lagged_data_postconflict)
+
+m2_ppl_postconflict <- lm(tworeal_all_ppl ~ tworeal_birthRate + lagged1_tworeal_birthRate + 
+                            lagged2_tworeal_birthRate + lagged3_tworeal_birthRate +
+                            lagged4_tworeal_birthRate + lagged5_tworeal_birthRate +
+                            lagged6_tworeal_birthRate + lagged7_tworeal_birthRate +
+                            lagged8_tworeal_birthRate + lagged9_tworeal_birthRate +
+                            lagged10_tworeal_birthRate, data=lagged_data_postconflict)
+
+m0.2_ppl_postconflict <- lm(base_all_ppl ~ base_birthRate + lagged1_base_birthRate +
+                              lagged2_base_birthRate + lagged3_base_birthRate +
+                              lagged4_base_birthRate + lagged5_base_birthRate +
+                              lagged6_base_birthRate + lagged7_base_birthRate +
+                              lagged8_base_birthRate + lagged9_base_birthRate +
+                              lagged10_base_birthRate + 
+                              base_birthRate * yrs_since +
+                              lagged1_base_birthRate * yrs_since +
+                              lagged2_base_birthRate * yrs_since +
+                              lagged3_base_birthRate * yrs_since +
+                              lagged4_base_birthRate * yrs_since +
+                              lagged5_base_birthRate * yrs_since +
+                              lagged6_base_birthRate * yrs_since +
+                              lagged7_base_birthRate * yrs_since +
+                              lagged8_base_birthRate * yrs_since +
+                              lagged9_base_birthRate * yrs_since +
+                              lagged10_base_birthRate * yrs_since,
+                              data=lagged_data_postconflict)
+
+m1.2_ppl_postconflict <- lm(real_all_ppl ~ real_birthRate + lagged1_real_birthRate +
+                              lagged2_real_birthRate + lagged3_real_birthRate +
+                              lagged4_real_birthRate + lagged5_real_birthRate +
+                              lagged6_real_birthRate + lagged7_real_birthRate +
+                              lagged8_real_birthRate + lagged9_real_birthRate +
+                              lagged10_real_birthRate + 
+                              real_birthRate * yrs_since +
+                              lagged1_real_birthRate * yrs_since +
+                              lagged2_real_birthRate * yrs_since +
+                              lagged3_real_birthRate * yrs_since +
+                              lagged4_real_birthRate * yrs_since +
+                              lagged5_real_birthRate * yrs_since +
+                              lagged6_real_birthRate * yrs_since +
+                              lagged7_real_birthRate * yrs_since +
+                              lagged8_real_birthRate * yrs_since +
+                              lagged9_real_birthRate * yrs_since +
+                              lagged10_real_birthRate * yrs_since,
+                          data=lagged_data_postconflict)
+
+m2.2_ppl_postconflict <- lm(tworeal_all_ppl ~ tworeal_birthRate + lagged1_tworeal_birthRate +
+                              lagged2_tworeal_birthRate + lagged3_tworeal_birthRate +
+                              lagged4_tworeal_birthRate + lagged5_tworeal_birthRate +
+                              lagged6_tworeal_birthRate + lagged7_tworeal_birthRate +
+                              lagged8_tworeal_birthRate + lagged9_tworeal_birthRate +
+                              lagged10_tworeal_birthRate + 
+                              tworeal_birthRate * yrs_since +
+                              lagged1_tworeal_birthRate * yrs_since +
+                              lagged2_tworeal_birthRate * yrs_since +
+                              lagged3_tworeal_birthRate * yrs_since +
+                              lagged4_tworeal_birthRate * yrs_since +
+                              lagged5_tworeal_birthRate * yrs_since +
+                              lagged6_tworeal_birthRate * yrs_since +
+                              lagged7_tworeal_birthRate * yrs_since +
+                              lagged8_tworeal_birthRate * yrs_since +
+                              lagged9_tworeal_birthRate * yrs_since +
+                              lagged10_tworeal_birthRate * yrs_since,
+                          data=lagged_data_postconflict)
+```
+
+Base Scenario
+
+```{r}
+stargazer(m0_ppl_postconflict, m0.2_ppl_postconflict, type = "text",
+          title = "Base Scenario -- All People ~ birthRate",
+          dep.var.labels = c("All People"),
+          style = "demography",
+          align = T,
+          single.row=T)
+```
+
+Real Scenario
+
+```{r}
+stargazer(m1_ppl_postconflict, m1.2_ppl_postconflict, 
+          title = "Real Scenario -- All People ~ birthRate",
+          dep.var.labels = c("All People"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Tworeal Scenario
+
+```{r}
+stargazer(m2_ppl_postconflict, m2.2_ppl_postconflict, 
+          title = "Tworeal Scenario -- All People ~ birthRate",
+          dep.var.labels = c("All People"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+<!-- 
+Base Scenario
+
+```{r}
+kable(tidy(m0_ppl_postconflict))
+```
+
+Base Scenario (Interaction)
+
+```{r}
+kable(tidy(m0.2_ppl_postconflict))
+```
+
+Real Scenario
+
+```{r}
+kable(tidy(m1_ppl_postconflict))
+```
+
+Real Scenario (Interaction)
+
+```{r}
+kable(tidy(m1.2_ppl_postconflict))
+```
+
+
+Tworeal Scenario
+
+```{r}
+kable(tidy(m2_ppl_postconflict))
+```
+
+Tworeal Scenario (Interaction)
+
+```{r}
+kable(tidy(m2.2_ppl_postconflict))
+```
+
+-->
+
+### [6.3.2] Birth Rates ~ Male Marriage
+
+```{r}
+m0_birth_male_postconflict <- lm(base_birthRate ~ base_male_marriageRate + 
+                 lagged1_base_male_marriageRate + lagged2_base_male_marriageRate +
+                 lagged3_base_male_marriageRate + lagged4_base_male_marriageRate +
+                 lagged5_base_male_marriageRate,
+                 data = lagged_data_postconflict)
+
+m1_birth_male_postconflict <- lm(real_birthRate ~ real_male_marriageRate + 
+                 lagged1_real_male_marriageRate + lagged2_real_male_marriageRate +
+                 lagged3_real_male_marriageRate + lagged4_real_male_marriageRate +
+                 lagged5_real_male_marriageRate,
+                 data = lagged_data_postconflict)
+
+m2_birth_male_postconflict <- lm(tworeal_birthRate ~ tworeal_male_marriageRate + 
+                 lagged1_tworeal_male_marriageRate + lagged2_tworeal_male_marriageRate +
+                 lagged3_tworeal_male_marriageRate + lagged4_tworeal_male_marriageRate +
+                 lagged5_tworeal_male_marriageRate,
+                 data = lagged_data_postconflict)
+
+m0.2_birth_male_postconflict <- lm(base_birthRate ~ base_male_marriageRate + 
+                 lagged1_base_male_marriageRate + lagged2_base_male_marriageRate +
+                 lagged3_base_male_marriageRate + lagged4_base_male_marriageRate +
+                 lagged5_base_male_marriageRate +
+                 base_male_marriageRate * yrs_since +
+                 lagged1_base_male_marriageRate * yrs_since +
+                 lagged2_base_male_marriageRate * yrs_since +
+                 lagged3_base_male_marriageRate * yrs_since +
+                 lagged4_base_male_marriageRate * yrs_since +
+                 lagged5_base_male_marriageRate * yrs_since,
+                 data = lagged_data_postconflict)
+
+m1.2_birth_male_postconflict <- lm(real_birthRate ~ real_male_marriageRate + 
+                 lagged1_real_male_marriageRate + lagged2_real_male_marriageRate +
+                 lagged3_real_male_marriageRate + lagged4_real_male_marriageRate +
+                 lagged5_real_male_marriageRate +
+                 real_male_marriageRate * yrs_since +
+                 lagged1_real_male_marriageRate * yrs_since +
+                 lagged2_real_male_marriageRate * yrs_since +
+                 lagged3_real_male_marriageRate * yrs_since +
+                 lagged4_real_male_marriageRate * yrs_since +
+                 lagged5_real_male_marriageRate * yrs_since,
+                 data = lagged_data_postconflict)
+
+m2.2_birth_male_postconflict <- lm(tworeal_birthRate ~ tworeal_male_marriageRate + 
+                 lagged1_tworeal_male_marriageRate + lagged2_tworeal_male_marriageRate +
+                 lagged3_tworeal_male_marriageRate + lagged4_tworeal_male_marriageRate +
+                 lagged5_tworeal_male_marriageRate +
+                 tworeal_male_marriageRate * yrs_since +
+                 lagged1_tworeal_male_marriageRate * yrs_since +
+                 lagged2_tworeal_male_marriageRate * yrs_since +
+                 lagged3_tworeal_male_marriageRate * yrs_since +
+                 lagged4_tworeal_male_marriageRate * yrs_since +
+                 lagged5_tworeal_male_marriageRate * yrs_since,
+                 data = lagged_data_postconflict)
+
+```
+
+Base Scenario
+
+```{r}
+stargazer(m0_birth_male_postconflict, m0.2_birth_male_postconflict, 
+          title = "Base Scenario -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+Real Scenario
+
+```{r}
+stargazer(m1_birth_male_postconflict, m1.2_birth_male_postconflict, 
+          title = "Real Scenario -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Tworeal Scenario
+
+```{r}
+stargazer(m2_birth_male_postconflict, m2.2_birth_male_postconflict,
+          title = "Tworeal Scenario -- birthRate ~ maleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+<!--
+Base
+
+```{r}
+kable(tidy(m0_birth_male_postconflict))
+```
+
+Base (Interaction)
+
+```{r}
+kable(tidy(m0.2_birth_male_postconflict))
+```
+
+
+Real
+
+```{r}
+kable(tidy(m1_birth_male_postconflict))
+```
+
+Real (Interaction)
+
+```{r}
+kable(tidy(m1.2_birth_male_postconflict))
+```
+
+Tworeal
+
+```{r}
+kable(tidy(m2_birth_male_postconflict))
+```
+
+Tworeal (Interaction)
+
+```{r}
+kable(tidy(m2.2_birth_male_postconflict))
+```
+
+-->
+
+### [6.3.3] Birth Rates ~ Female Marriage
+
+```{r}
+m0_birth_female_postconflict <- lm(base_birthRate ~ base_female_marriageRate + 
+                 lagged1_base_female_marriageRate + lagged2_base_female_marriageRate +
+                 lagged3_base_female_marriageRate + lagged4_base_female_marriageRate +
+                 lagged5_base_female_marriageRate,
+                 data = lagged_data_postconflict)
+
+m1_birth_female_postconflict <- lm(real_birthRate ~ real_female_marriageRate + 
+                 lagged1_real_female_marriageRate + lagged2_real_female_marriageRate +
+                 lagged3_real_female_marriageRate + lagged4_real_female_marriageRate +
+                 lagged5_real_female_marriageRate,
+                 data = lagged_data_postconflict)
+
+m2_birth_female_postconflict <- lm(tworeal_birthRate ~ tworeal_female_marriageRate + 
+                 lagged1_tworeal_female_marriageRate + lagged2_tworeal_female_marriageRate +
+                 lagged3_tworeal_female_marriageRate + lagged4_tworeal_female_marriageRate +
+                 lagged5_tworeal_female_marriageRate,
+                 data = lagged_data_postconflict)
+
+m0.2_birth_female_postconflict <- lm(base_birthRate ~ base_female_marriageRate + 
+                 lagged1_base_female_marriageRate + lagged2_base_female_marriageRate +
+                 lagged3_base_female_marriageRate + lagged4_base_female_marriageRate +
+                 lagged5_base_female_marriageRate +
+                 base_female_marriageRate * yrs_since +
+                 lagged1_base_female_marriageRate * yrs_since +
+                 lagged2_base_female_marriageRate * yrs_since +
+                 lagged3_base_female_marriageRate * yrs_since +
+                 lagged4_base_female_marriageRate * yrs_since +
+                 lagged5_base_female_marriageRate * yrs_since,
+                 data = lagged_data_postconflict)
+
+m1.2_birth_female_postconflict <- lm(real_birthRate ~ real_female_marriageRate + 
+                 lagged1_real_female_marriageRate + lagged2_real_female_marriageRate +
+                 lagged3_real_female_marriageRate + lagged4_real_female_marriageRate +
+                 lagged5_real_female_marriageRate +
+                 real_female_marriageRate * yrs_since +
+                 lagged1_real_female_marriageRate * yrs_since +
+                 lagged2_real_female_marriageRate * yrs_since +
+                 lagged3_real_female_marriageRate * yrs_since + 
+                 lagged4_real_female_marriageRate * yrs_since +
+                 lagged5_real_female_marriageRate * yrs_since,
+                 data = lagged_data_postconflict)
+
+m2.2_birth_female_postconflict <- lm(tworeal_birthRate ~ tworeal_female_marriageRate + 
+                 lagged1_tworeal_female_marriageRate + lagged2_tworeal_female_marriageRate +
+                 lagged3_tworeal_female_marriageRate + lagged4_tworeal_female_marriageRate +
+                 lagged5_tworeal_female_marriageRate +
+                 tworeal_female_marriageRate * yrs_since +
+                 lagged1_tworeal_female_marriageRate * yrs_since +
+                 lagged2_tworeal_female_marriageRate * yrs_since +
+                 lagged3_tworeal_female_marriageRate * yrs_since +
+                 lagged4_tworeal_female_marriageRate * yrs_since +
+                 lagged5_tworeal_female_marriageRate * yrs_since,
+                 data = lagged_data_postconflict)
+```
+
+Base Scenario
+
+```{r}
+stargazer(m0_birth_female_postconflict, m0.2_birth_female_postconflict, 
+          title = "Base Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Real Scenario
+
+```{r}
+stargazer(m1_birth_female_postconflict, m1.2_birth_female_postconflict, 
+          title = "Real Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+
+Tworeal Scenario
+
+```{r}
+stargazer(m2_birth_female_postconflict, m2.2_birth_female_postconflict, 
+          title = "Tworeal Scenario -- birthRate ~ femaleMarriage",
+          dep.var.labels = c("birthRate"),
+          style = "demography",
+          type = "text",
+          align = T,
+          single.row=T)
+```
+<!--
+Base
+
+```{r}
+kable(tidy(m0_birth_female_postconflict))
+```
+
+Base (Interaction)
+
+```{r}
+kable(tidy(m0.2_birth_female_postconflict))
+```
+
+Real
+
+```{r}
+kable(tidy(m1_birth_female_postconflict))
+```
+
+Real (Interaction)
+
+```{r}
+kable(tidy(m1.2_birth_female_postconflict))
+```
+
+
+Tworeal
+
+```{r}
+kable(tidy(m2_birth_female_postconflict))
+```
+
+Tworeal (Interaction)
+
+```{r}
+kable(tidy(m2.2_birth_female_postconflict))
+```
+-->
+
+\newpage
+
+# [8] Population Growth Rates
+
+## [8.1] Conflict Period
+
+### [8.1.1] Base Scenario
+
+```{r}
+combined_transposed_conflict <- combined_transposed_conflict %>%
+  mutate(base_pop_growth = c(0, 
+                        ((base_all_ppl[2:length(base_all_ppl)] - 
+                            base_all_ppl[1:length(base_all_ppl)-1])/base_all_ppl[1:length(base_all_ppl)-1])))
+
+base_popGrowth_plot <- ggplot(data = combined_transposed_conflict[2:5, ], aes(x= year, y = base_pop_growth)) +
+  geom_line() +
+  ggtitle("Population Growth Rate (Base)") +
+  theme_minimal()
+
+plot(base_popGrowth_plot)
+```
+
+### [8.1.2] Real Scenario
+
+```{r}
+combined_transposed_conflict <- combined_transposed_conflict %>%
+  mutate(real_pop_growth = c(0, 
+                        ((real_all_ppl[2:length(real_all_ppl)] - 
+                            real_all_ppl[1:length(real_all_ppl)-1])/real_all_ppl[1:length(real_all_ppl)-1])))
+
+real_popGrowth_plot <- ggplot(data = combined_transposed_conflict[2:5, ], aes(x= year, y = real_pop_growth)) +
+  geom_line() +
+  ggtitle("Population Growth Rate (Real)") +
+  theme_minimal()
+
+plot(real_popGrowth_plot)
+```
+
+### [8.1.3] Tworeal Scenario
+
+```{r}
+combined_transposed_conflict <- combined_transposed_conflict %>%
+  mutate(tworeal_pop_growth = c(0, 
+                        ((tworeal_all_ppl[2:length(tworeal_all_ppl)] - 
+                            tworeal_all_ppl[1:length(tworeal_all_ppl)-1])/tworeal_all_ppl[1:length(tworeal_all_ppl)-1])))
+
+tworeal_popGrowth_plot <- ggplot(data = combined_transposed_conflict[2:5, ], aes(x= year, y = tworeal_pop_growth)) +
+  geom_line() +
+  ggtitle("Population Growth Rate (Tworeal)") +
+  theme_minimal()
+
+plot(tworeal_popGrowth_plot)
+```
+
+### [8.1.4] Combined Plots
+
+```{r}
+combined_popGrowth_plot <- ggplot(data = combined_transposed_conflict[2:5, ], aes(x= year)) +
+  geom_line(aes(y = base_pop_growth, linetype = "base")) +
+  geom_line(aes(y = real_pop_growth, linetype = "real")) +
+  geom_line(aes(y = tworeal_pop_growth, linetype = "tworeal")) + 
+  scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Population Growth Rate (Combined)") +
+  theme_minimal()
+
+plot(combined_popGrowth_plot)
+```
+
+
+## [8.2] Postconflict Period
+
+### [8.2.1] Base Scenario
+
+```{r}
+combined_transposed_postconflict <- combined_transposed_postconflict %>%
+  mutate(base_pop_growth = c(0, 
+                        ((base_all_ppl[2:length(combined_transposed_postconflict$base_all_ppl)] - 
+                            base_all_ppl[1:length(combined_transposed_postconflict$base_all_ppl)-1])/base_all_ppl[1:length(combined_transposed_postconflict$base_all_ppl)-1])))
+
+base_popGrowth_plot_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ], 
+                                           aes(x= year, y = base_pop_growth)) +
+  geom_line() +
+  ggtitle("Population Growth Rate (Base)") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(22,50,1))
+
+plot(base_popGrowth_plot_postconflict)
+```
+
+### [8.2.2] Real Scenario
+
+```{r}
+combined_transposed_postconflict <- combined_transposed_postconflict %>%
+  mutate(real_pop_growth = c(0, 
+                        ((real_all_ppl[2:length(real_all_ppl)] - 
+                            real_all_ppl[1:length(combined_transposed_postconflict$real_all_ppl)-1])/real_all_ppl[1:length(combined_transposed_postconflict$real_all_ppl)-1])))
+
+real_popGrowth_plot_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ], 
+                                           aes(x= year, y = real_pop_growth)) +
+  geom_line() +
+  ggtitle("Population Growth Rate (Real)") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(22,50,1))
+
+plot(real_popGrowth_plot_postconflict)
+```
+
+### [8.2.3] Tworeal Scenario
+
+```{r}
+combined_transposed_postconflict <- combined_transposed_postconflict %>%
+  mutate(tworeal_pop_growth = c(0, 
+                        ((tworeal_all_ppl[2:length(tworeal_all_ppl)] - 
+                            tworeal_all_ppl[1:length(tworeal_all_ppl)-1])/tworeal_all_ppl[1:length(tworeal_all_ppl)-1])))
+
+combined_transposed_postconflict <- combined_transposed_postconflict %>%
+  mutate(tworeal_pop_growth = c(0,
+                                (tworeal_all_ppl[2:length(tworeal_all_ppl)] -
+                                   tworeal_all_ppl[1:(length(tworeal_all_ppl)-1)])/tworeal_all_ppl[1:(length(tworeal_all_ppl)-1)]))
+
+tworeal_popGrowth_plot_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ], 
+                                           aes(x= year, y = tworeal_pop_growth)) +
+  geom_line() +
+  ggtitle("Population Growth Rate (TwoReal)") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(22,50,1)) 
+
+plot(tworeal_popGrowth_plot_postconflict)
+```
+
+### [8.2.4] Combined Plots
+
+```{r}
+# Entire simulation period 
+combined_transposed <- combined_transposed %>%
+  mutate(base_pop_growth = c(0, 
+                        ((base_all_ppl[2:length(combined_transposed$base_all_ppl)] - 
+                            base_all_ppl[1:length(combined_transposed$base_all_ppl)-1])/base_all_ppl[1:length(combined_transposed$base_all_ppl)-1])),
+         real_pop_growth = c(0, 
+                        ((real_all_ppl[2:length(combined_transposed$real_all_ppl)] - 
+                            real_all_ppl[1:length(combined_transposed$real_all_ppl)-1])/real_all_ppl[1:length(combined_transposed$real_all_ppl)-1])),
+         tworeal_pop_growth = c(0, 
+                        ((tworeal_all_ppl[2:length(combined_transposed$tworeal_all_ppl)] - 
+                            tworeal_all_ppl[1:length(combined_transposed$tworeal_all_ppl)-1])/tworeal_all_ppl[1:length(combined_transposed$tworeal_all_ppl)-1]))) %>%
+  mutate(diff_real_pop_growth = real_pop_growth - base_pop_growth,
+         diff_tworeal_pop_growth = tworeal_pop_growth - base_pop_growth)
+
+popGrowth_plot <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_pop_growth, colour = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_pop_growth, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_pop_growth, colour = "tworeal"), lwd = 1.2) + 
+  scale_colour_manual(values = c("base" = "black", 
+                                   "real" = "blue",
+                                   "tworeal" = "red")) +
+  ggtitle("Population Growth Rate") +
+  theme_minimal() +
+  ylab("Growth Rate") +
+  scale_x_continuous(breaks = seq(0,50,10)) +
+  scale_y_continuous(breaks = seq(-0.01, 0.04, 0.005)) +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"))
+
+plot(popGrowth_plot)
+ggsave(here::here("Images", "popGrowth.png"), popGrowth_plot, width = 20, height = 10, dpi = 700)
+
+# Conflict period
+popGrowth_plot_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = base_pop_growth, colour = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_pop_growth, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_pop_growth, colour = "tworeal"), lwd = 1.2) + 
+  scale_colour_manual(values = c("base" = "black", 
+                                   "real" = "blue",
+                                   "tworeal" = "red")) +
+  ggtitle("Population Growth Rate") +
+  theme_minimal() +
+  ylab("Growth Rate") +
+  scale_x_continuous(breaks = seq(15,25, 1)) +
+  scale_y_continuous(breaks = seq(-0.01, 0.04, 0.005)) +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"))
+
+plot(popGrowth_plot_postconflict)
+ggsave(here::here("Images", "popGrowth_postconflict.png"), popGrowth_plot_postconflict, width = 20, height = 10, dpi = 700)
+
+```
+
+
+
+```{r}
+# % Diff Pop Growth
+diff_popGrowth <- combined_transposed[c(15:50), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 22, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = diff_real_pop_growth, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = diff_tworeal_pop_growth, colour = "tworeal"), lwd = 1.2) + 
+  scale_colour_manual(values = c("real" = "blue",
+                                 "tworeal" = "red")) +
+  ggtitle("% Diff Population Growth Rate") +
+  theme_minimal() +
+  ylab("% Diff") +
+  scale_x_continuous(breaks = seq(0,50,10)) +
+  scale_y_continuous(breaks = seq(-0.01, 0.03, 0.005)) +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold"))
+
+plot(diff_popGrowth)
+ggsave(here::here("Images", "popGrowth_diff.png"), diff_popGrowth, width = 20, height = 10, dpi = 700)
+
+# % Postconflict Period
+diff_popGrowth_postconflict <- combined_transposed[c(15:25), ] %>%
+  ggplot(aes(x = year)) +
+  geom_rect(aes(xmin = 17, xmax = 21, ymin = -Inf, ymax = Inf), alpha = 0.2, fill = "lightgray") +
+  geom_line(aes(y = diff_real_pop_growth, colour = "real"), lwd = 1.2) +
+  geom_line(aes(y = diff_tworeal_pop_growth, colour = "tworeal"), lwd = 1.2) + 
+  scale_colour_manual(values = c("real" = "blue",
+                                 "tworeal" = "red")) +
+  ggtitle("% Diff Population Growth Rate") +
+  theme_minimal() +
+  ylab("% Diff") +
+  scale_x_continuous(breaks = seq(15,25,1)) +
+  scale_y_continuous(breaks = seq(0, 0.03, 0.005)) +
+  theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 25, face = "bold"),
+        plot.title = element_text(size = 25, face = "bold")) 
+
+plot(diff_popGrowth_postconflict)
+ggsave(here::here("Images", "popGrowth_diff_postconflict.png"), diff_popGrowth_postconflict, width = 20, height = 10, dpi = 700)
+
+```
+
+
+```{r}
+# Post conflict
+combined_popGrowth_plot_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ],
+                                               aes(x= year)) +
+  geom_line(aes(y = base_pop_growth, linetype = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_pop_growth, linetype = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_pop_growth, linetype = "tworeal"), lwd = 1.2) + 
+  scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Population Growth Rate (Combined)") +
+  theme_minimal() +
+  ylab("Population Growth Rate") +
+  scale_x_continuous(breaks = seq(22,50,1)) +
+  scale_y_continuous(breaks = seq(-0.01, 0.02, 0.005)) +
+  theme(legend.key.size = unit(1, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  geom_hline(yintercept=0) +
+  geom_vline(xintercept=22)
+
+plot(combined_popGrowth_plot_postconflict)
+ggsave(here::here("Images", "popGrowth_combined.png"), combined_popGrowth_plot_postconflict, width = 20, height = 10, dpi = 700)
+```
+
+# [9] Birth Rates
+
+```{r}
+birthRate_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ],
+                                               aes(x= year)) +
+  geom_line(aes(y = base_birthRate, linetype = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_birthRate, linetype = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_birthRate, linetype = "tworeal"), lwd = 1.2) + 
+  scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Population Birth Rate") +
+  theme_minimal() +
+  ylab("Birth Rate") +
+  scale_x_continuous(breaks = seq(22,50,1)) +
+  #scale_y_continuous(breaks = seq(-0.01, 0.02, 0.005)) +
+  theme(legend.key.size = unit(1, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  #geom_hline(yintercept=0) +
+  geom_vline(xintercept=22)
+
+plot(birthRate_postconflict)
+ggsave(here::here("Images", "birthRate_combined.png"), birthRate_postconflict, width = 20, height = 10, dpi = 700)
+```
+
+# [10] Marriage Rates
+
+## [10.1] Male Marriage Rates
+
+```{r}
+male_marriageRate_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ],
+                                               aes(x= year)) +
+  geom_line(aes(y = base_male_marriageRate, linetype = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_male_marriageRate, linetype = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_male_marriageRate, linetype = "tworeal"), lwd = 1.2) + 
+  scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Male Marriage Rate") +
+  theme_minimal() +
+  ylab("Marriage Rate") +
+  scale_x_continuous(breaks = seq(22,50,1)) +
+  #scale_y_continuous(breaks = seq(-0.01, 0.02, 0.005)) +
+  theme(legend.key.size = unit(1, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  #geom_hline(yintercept=0) +
+  geom_vline(xintercept=22) +
+  geom_vline(xintercept=35)
+
+plot(male_marriageRate_postconflict)
+ggsave(here::here("Images", "maleMarriage_combined.png"), male_marriageRate_postconflict, width = 20, height = 10, dpi = 700)
+```
+
+## [10.2] Female Marriage Rates
+
+```{r}
+female_marriageRate_postconflict <- ggplot(data = combined_transposed_postconflict[2:length(combined_transposed_postconflict$year), ],
+                                               aes(x= year)) +
+  geom_line(aes(y = base_female_marriageRate, linetype = "base"), lwd = 1.2) +
+  geom_line(aes(y = real_female_marriageRate, linetype = "real"), lwd = 1.2) +
+  geom_line(aes(y = tworeal_female_marriageRate, linetype = "tworeal"), lwd = 1.2) + 
+  scale_linetype_manual(values = c("base" = "solid", 
+                                   "real" = "dashed",
+                                   "tworeal" = "dotted")) +
+  ggtitle("Female Marriage Rate") +
+  theme_minimal() +
+  ylab("Marriage Rate") +
+  scale_x_continuous(breaks = seq(22,50,1)) +
+  #scale_y_continuous(breaks = seq(-0.01, 0.02, 0.005)) +
+  theme(legend.key.size = unit(1, 'cm'),
+        text = element_text(size = 13),
+        legend.position = "bottom") +
+  #geom_hline(yintercept=0) +
+  geom_vline(xintercept=22) +
+  geom_vline(xintercept=33)
+
+plot(female_marriageRate_postconflict)
+ggsave(here::here("Images", "femaleMarriage_combined.png"), female_marriageRate_postconflict, width = 20, height = 10, dpi = 700)
+```
+
